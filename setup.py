@@ -55,6 +55,11 @@ def run_channel_generation_distribution(cluster, img_param, angle = 0, shift = n
     localizations_A = generate_dataset.localization_error( localizations_A, img_param, error )
     localizations_B = generate_dataset.localization_error( localizations_B, img_param, error )
     
+    localizations_A[0,:] = localizations_A[0,:]- img_param.img_size_zoom()[0]/2 
+    localizations_B[0,:] = localizations_B[0,:] - img_param.img_size_zoom()[0]/2 
+    localizations_A[1,:] = localizations_A[1,:]- img_param.img_size_zoom()[1]/2 
+    localizations_B[1,:] = localizations_B[1,:] - img_param.img_size_zoom()[1]/2 
+    
     # Induce shift and rotation in Channel B
     if angle:
         localizations_B = dataset_manipulation.rotation( localizations_B, angle, img_param )
@@ -118,6 +123,11 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     # Generate localization error 
     localizations_A = generate_dataset.localization_error( localizations_A, img_param, error )
     localizations_B = generate_dataset.localization_error( localizations_B, img_param, error )
+    
+    localizations_A[0,:] = localizations_A[0,:]- img_param.img_size_zoom()[0]/2 
+    localizations_B[0,:] = localizations_B[0,:] - img_param.img_size_zoom()[0]/2 
+    localizations_A[1,:] = localizations_A[1,:]- img_param.img_size_zoom()[1]/2 
+    localizations_B[1,:] = localizations_B[1,:] - img_param.img_size_zoom()[1]/2 
     
     # Induce shift and rotation in Channel B
     if angle:

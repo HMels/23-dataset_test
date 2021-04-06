@@ -73,6 +73,9 @@ output is an NxN matrix with intensities of localizations and Noise.
 Plot via plt.imshow(channel)
     '''
     img_size = img_param.img_size_zoom()
+        
+    localizations[0,:] = localizations[0,:] + img_param.img_size_zoom()[0]/2 
+    localizations[1,:] = localizations[1,:] + img_param.img_size_zoom()[1]/2 
     
     channel = np.zeros([ int(img_size[0]), int(img_size[1]) ], dtype = int)
     for i in range(len(localizations[0,:])):

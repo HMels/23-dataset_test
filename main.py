@@ -53,7 +53,7 @@ p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
 
-img_param = setup.Image(zoom = 10, pix_size = 100,            #parameters of the system
+img_param = setup.Image(zoom = 5, pix_size = 100,            #parameters of the system
                   img_size_x1 = 50, img_size_x2 = 25, 
                   Noise = 40)    
 
@@ -63,7 +63,7 @@ cluster[0] = setup.Cluster(loc_x1 = 5, loc_x2 = 2.5, std_x1 = 2, std_x2 = 4, N =
 cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N = 1000)
 
 # Deformation of channel B
-angle0 = 0                          # angle of rotation in degrees
+angle0 = 0.5                         # angle of rotation in degrees
 shift0 = np.array([ 0  , 0 ])      # shift in nm
 
 #%% Channel Generation
@@ -72,17 +72,18 @@ plt.close('all')
 angle = angle0 * np.pi / 180          # angle in radians
 shift = shift0 / img_param.zoom      # shift in units of system [zoom]
 
-if False: # generate Channel via distribution
+if True: # generate Channel via distribution
     channel_A, channel_B, localizations_A, localizations_B = (
         setup.run_channel_generation_distribution(cluster, img_param,
                                                   angle, shift, error = 0.1)
         )
 
-if True: # generate Channel via real data
+if False: # generate Channel via real data
     channel_A, channel_B, localizations_A, localizations_B, img_param = (
         setup.run_channel_generation_realdata(img_param,
                                                   angle, shift, error = 0.1)
         )
+    
 #%% Cross correlation Calculation
 _ , abs_error_nm = cross_correlation.cross_corr_script(channel_A, channel_B, 
                                                        img_param, shift, pix_search = 1.5,
@@ -94,7 +95,7 @@ if True:
     ch2 = tf.convert_to_tensor( localizations_B, np.float32)
     
     polmod = Minimum_Entropy.PolMod(name='Polynomial')
-    opt = tf.optimizers.Adam(learning_rate=0.1)
+    opt = tf.optimizers.Adam(learning_rate=0.01)
     
     polmod_apply_grads = Minimum_Entropy.get_apply_grad_fn()
     loss = polmod_apply_grads(ch1, ch2, polmod, opt)

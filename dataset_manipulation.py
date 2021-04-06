@@ -26,7 +26,7 @@ localizations back
     cos = np.cos(angle) 
     sin = np.sin(angle)
     
-    mid= img_param.img_size_zoom()/2  
+    mid= np.array([0,0])# img_param.img_size_zoom()/2  
     localizations[0,:] = localizations[0,:] - mid[0]
     localizations[1,:] = localizations[1,:] - mid[1]
     
