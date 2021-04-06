@@ -64,7 +64,7 @@ cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N =
 
 # Deformation of channel B
 angle0 = 0.5                         # angle of rotation in degrees
-shift0 = np.array([ 0  , 0 ])      # shift in nm
+shift0 = np.array([ 10  , 5 ])      # shift in nm
 
 #%% Channel Generation
 plt.close('all')
@@ -95,13 +95,15 @@ if True:
     ch2 = tf.convert_to_tensor( localizations_B, np.float32)
     
     polmod = Minimum_Entropy.PolMod(name='Polynomial')
-    opt = tf.optimizers.Adam(learning_rate=0.01)
+    opt = tf.optimizers.Adam(learning_rate=0.1)
     
     polmod_apply_grads = Minimum_Entropy.get_apply_grad_fn()
     loss = polmod_apply_grads(ch1, ch2, polmod, opt)
     
     print('Minimum Entropy:')
-    print(polmod.trainable_weights)
+    #print(polmod.trainable_weights)
+    print('  Shift = ',polmod.shift.d.numpy())
+    print('  Rotation = ',polmod.rotation.theta.numpy())
     
 
     

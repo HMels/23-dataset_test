@@ -104,7 +104,7 @@ def Rel_entropy(ch1, ch2):
     We start with a simple model, in which we only take the nearest neighbour of
     localization i, so for this case there is no need for a loop over j
     '''
-    nn_ch1, nn_ch2 = ML_functions.vicinity_neighbours(ch1, ch2, 4)
+    nn_ch1, nn_ch2 = ML_functions.vicinity_neighbours(ch1, ch2, 3)
     
     N = ch1.shape[1]
     rel_entropy = 0
@@ -134,11 +134,17 @@ class PolMod(tf.keras.Model):
     def __init__(self, name=None):
         super().__init__(name=name)
         
-        self.polynomial = Polynomial()
+        #self.polynomial = Polynomial()
+        self.shift = Shift()
+        self.rotation = Rotation()
     
    # @tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
-        ch2_logits = self.polynomial(ch2)
+        #ch2_logits = self.polynomial(ch2)
+        ch2_logits = self.rotation(
+            self.shift( ch2 )
+            )
+        
         return Rel_entropy(ch1, ch2_logits)
 
 class Polynomial(tf.keras.layers.Layer):
@@ -178,3 +184,31 @@ class Polynomial(tf.keras.layers.Layer):
                                ], axis = 0)
         
         return tf.reduce_sum(y, axis = 0)
+
+
+#%% new classes
+class Shift(tf.keras.layers.Layer):
+    def __init__(self, name = None):
+        super().__init__(name=name)
+        
+        self.d = tf.Variable([0, 0], dtype=tf.float32, trainable=True, name='shift')
+        
+    #@tf.function
+    def call(self, x_input):
+        x1 = x_input[0,:] + self.d[0]
+        x2 = x_input[1,:] + self.d[1]
+        return tf.stack([x1, x2], axis =0)
+    
+        
+class Rotation(tf.keras.layers.Layer):
+    def __init__(self, name = None):
+        super().__init__(name=name)
+        
+        self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
+        
+    #@tf.function
+    def call(self, x_input):
+        x1 = x_input[0,:]*mth.cos(self.theta) - x_input[1,:]*mth.sin(self.theta)
+        x2 = x_input[0,:]*mth.sin(self.theta) + x_input[1,:]*mth.cos(self.theta)
+        return tf.stack([x1, x2], axis =0)
+        
