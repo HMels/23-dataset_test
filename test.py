@@ -45,15 +45,14 @@ channel_A, channel_B, localizations_A, localizations_B = (
     )
 
 #%% Optimizing
-ch1 = tf.convert_to_tensor( localizations_A, np.float32)
-ch2 = tf.convert_to_tensor( localizations_B, np.float32)
+ch1 = tf.convert_to_tensor( localizations_A.transpose(), np.float32)
+ch2 = tf.convert_to_tensor( localizations_B.transpose(), np.float32)
     
 model = Minimum_Entropy.PolMod(name='Polynomial')
 opt = tf.optimizers.Adam(learning_rate=0.1)
 
 with tf.GradientTape() as tape:
-        tape.watch(model.trainable_variables)
-        y = model(ch1, ch2)
+    y = model(ch1, ch2)
             
 gradients = tape.gradient(y, model.trainable_variables)
         

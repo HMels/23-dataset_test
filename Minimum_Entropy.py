@@ -15,7 +15,6 @@ The script also contains the next Model in the form of Classes
 
 '''
 import tensorflow as tf
-import tensorflow.math as mth
 import ML_functions
 from photonpy import PostProcessMethods, Context
 
@@ -78,18 +77,21 @@ def KL_divergence(mu_i, mu_j):
 
     '''
     typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
-    K = mu_i.shape[0]
+    K = mu_i.shape[1]
     sigma2_i = typical_CRLB * tf.ones(K, dtype = float)
     sigma2_j = typical_CRLB * tf.ones(K, dtype = float)
-    
+
+    return tf.reduce_sum( (mu_i - mu_j)**2 / sigma2_j[None], 1 )
+
+    """
     D_KL = -K/2
     for k in range(K):
-        D_KL += ( (1/2) * mth.log(sigma2_j[k] / sigma2_i[k]) 
+        D_KL += ( (1/2) * tf.math.log(sigma2_j[k] / sigma2_i[k]) 
                  + sigma2_i[k] / sigma2_j[k] 
                  + (1/sigma2_j[k]) * (mu_i[k] - mu_j[k])**2
                  )
     return D_KL
-    
+    """
 
 #@tf.function
 def Rel_entropy1(ch1, ch2):
@@ -115,11 +117,11 @@ def Rel_entropy1(ch1, ch2):
         while nn_ch1[j] == i:
             # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
             D_KL = KL_divergence(ch1[:,i], ch2[:, int(nn_ch2[j].numpy() ) ]) 
-            temp += mth.exp( - D_KL )
+            temp += tf.math.exp( - D_KL )
             j += 1                      # the next index
 
         if temp != 0:                   # ignore empty values
-            rel_entropy += mth.log( (1/N) * temp  )
+            rel_entropy += tf.math.log( (1/N) * temp  )
     return -1.0 * rel_entropy / N
 
 
@@ -138,16 +140,20 @@ def Rel_entropy(ch1, ch2):
 
     '''
     N = ch1.shape[1]
+
+    return tf.reduce_sum(KL_divergence(ch1, ch2))
+
+    """
     rel_entropy = 0.0
     for i in range(N):
         # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
         D_KL = KL_divergence( ch1[:, i], ch2[:, i] )
-        temp = mth.exp( - D_KL )
+        temp = tf.math.exp( - D_KL )
 
         if temp != 0.0:                   # ignore empty values
-            rel_entropy += mth.log( (1/N) * temp  )
+            rel_entropy += tf.math.log( (1/N) * temp  )
     return -1.0 * rel_entropy / N
-
+    """
 
 
 #%% Classes
@@ -174,7 +180,8 @@ class PolMod(tf.keras.Model):
             self.shift( ch2 )
             )
         
-        return Rel_entropy(ch1, ch2_logits)
+        y = Rel_entropy(ch1, ch2_logits)
+        return y
 
 class Polynomial(tf.keras.layers.Layer):
     '''
@@ -224,9 +231,7 @@ class Shift(tf.keras.layers.Layer):
         
     @tf.function
     def call(self, x_input):
-        x1 = x_input[0,:] + self.d[0]
-        x2 = x_input[1,:] + self.d[1]
-        return tf.stack([x1, x2], axis =0)
+        return x_input + self.d[None]
     
         
 class Rotation(tf.keras.layers.Layer):
@@ -237,7 +242,8 @@ class Rotation(tf.keras.layers.Layer):
         
     @tf.function
     def call(self, x_input):
-        x1 = x_input[0,:]*mth.cos(self.theta) - x_input[1,:]*mth.sin(self.theta)
-        x2 = x_input[0,:]*mth.sin(self.theta) + x_input[1,:]*mth.cos(self.theta)
-        return tf.stack([x1, x2], axis =0)
+        x1 = x_input[:,0]*tf.math.cos(self.theta) - x_input[:,1]*tf.math.sin(self.theta)
+        x2 = x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
+        r = tf.stack([x1, x2], axis =1)
+        return r
         
