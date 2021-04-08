@@ -22,7 +22,6 @@ from photonpy import PostProcessMethods, Context
 
 #%% optimization function
 def get_apply_grad_fn():
-    @tf.function
     def apply_grad(ch1, ch2, model, opt):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
@@ -44,15 +43,26 @@ def get_apply_grad_fn():
             the relative entropy.
 
         '''
-        with tf.GradientTape() as tape:
-            tape.watch(model.trainable_variables)
-            y = model(ch1, ch2)
-            
-        gradients = tape.gradient(y, model.trainable_variables)
-        #print('y = ',y.numpy(),'theta = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
-        #print('gradients = ',gradients)
+        i = 0
+        y1 = 1000
+        step_size = 1
         
-        opt.apply_gradients(zip(gradients, model.trainable_variables))
+        while step_size > 0.01:
+            with tf.GradientTape() as tape:
+                y = model(ch1, ch2)
+                        
+            gradients = tape.gradient(y, model.trainable_variables)
+                 
+            step_size = tf.abs(y1 - y)
+            if i%100 == 0:
+                print('------------------------ ( i = ', i, ' )------------------------')
+                print('- theta = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
+                print('- Entropy = ',y.numpy(),'gradients = ',gradients)
+            
+            opt.apply_gradients(zip(gradients, model.trainable_variables))
+            
+            y1 = y
+            i += 1 
         
         return y
     return apply_grad
