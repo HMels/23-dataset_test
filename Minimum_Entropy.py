@@ -23,7 +23,7 @@ from photonpy import PostProcessMethods, Context
 
 #%% optimization function
 def get_apply_grad_fn():
-    #@tf.function
+    @tf.function
     def apply_grad(ch1, ch2, model, opt):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
@@ -50,6 +50,9 @@ def get_apply_grad_fn():
             y = model(ch1, ch2)
             
         gradients = tape.gradient(y, model.trainable_variables)
+        #print('y = ',y.numpy(),'theta = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
+        #print('gradients = ',gradients)
+        
         opt.apply_gradients(zip(gradients, model.trainable_variables))
         
         return y
@@ -89,6 +92,38 @@ def KL_divergence(mu_i, mu_j):
     
 
 #@tf.function
+def Rel_entropy1(ch1, ch2):
+    '''
+    Parameters
+    ----------
+    x_input : float32 array 
+        The array containing the [x1, x2] locations of all localizations.
+
+    Returns
+    -------
+    rel_entropy : float32
+        The relative entropy as calculated by Cnossen 2021.
+
+    '''
+    nn_ch1, nn_ch2 = ML_functions.vicinity_neighbours_numpy(ch1, ch2, 3)
+    
+    N = ch1.shape[1]
+    rel_entropy = 0
+    j = 0
+    for i in range(N):
+        temp = 0
+        while nn_ch1[j] == i:
+            # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
+            D_KL = KL_divergence(ch1[:,i], ch2[:, int(nn_ch2[j].numpy() ) ]) 
+            temp += mth.exp( - D_KL )
+            j += 1                      # the next index
+
+        if temp != 0:                   # ignore empty values
+            rel_entropy += mth.log( (1/N) * temp  )
+    return -1.0 * rel_entropy / N
+
+
+#@tf.function
 def Rel_entropy(ch1, ch2):
     '''
     Parameters
@@ -101,24 +136,18 @@ def Rel_entropy(ch1, ch2):
     rel_entropy : float32
         The relative entropy as calculated by Cnossen 2021.
 
-    We start with a simple model, in which we only take the nearest neighbour of
-    localization i, so for this case there is no need for a loop over j
     '''
-    nn_ch1, nn_ch2 = ML_functions.vicinity_neighbours(ch1, ch2, 3)
-    
     N = ch1.shape[1]
-    rel_entropy = 0
-    j = 0
+    rel_entropy = 0.0
     for i in range(N):
-        temp = 0
-        while nn_ch1[j] == i:
-            # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
-            D_KL = KL_divergence(ch1[:,i], ch2[:, int(nn_ch2[j].numpy() ) ]) 
-            temp += mth.exp( - D_KL )
-            j += 1
-        rel_entropy += mth.log( (1/N) * temp  )
-            
-    return -1 * rel_entropy / N
+        # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
+        D_KL = KL_divergence( ch1[:, i], ch2[:, i] )
+        temp = mth.exp( - D_KL )
+
+        if temp != 0.0:                   # ignore empty values
+            rel_entropy += mth.log( (1/N) * temp  )
+    return -1.0 * rel_entropy / N
+
 
 
 #%% Classes
@@ -138,7 +167,7 @@ class PolMod(tf.keras.Model):
         self.shift = Shift()
         self.rotation = Rotation()
     
-   # @tf.function # to indicate code should run as graph
+    @tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
         #ch2_logits = self.polynomial(ch2)
         ch2_logits = self.rotation(
@@ -171,7 +200,7 @@ class Polynomial(tf.keras.layers.Layer):
                               )
         
         
-    #@tf.function
+    @tf.function
     def call(self, x_input):
         y = tf.zeros(x_input.shape)[None]
         for i in range(2):
@@ -193,7 +222,7 @@ class Shift(tf.keras.layers.Layer):
         
         self.d = tf.Variable([0, 0], dtype=tf.float32, trainable=True, name='shift')
         
-    #@tf.function
+    @tf.function
     def call(self, x_input):
         x1 = x_input[0,:] + self.d[0]
         x2 = x_input[1,:] + self.d[1]
@@ -206,7 +235,7 @@ class Rotation(tf.keras.layers.Layer):
         
         self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
         
-    #@tf.function
+    @tf.function
     def call(self, x_input):
         x1 = x_input[0,:]*mth.cos(self.theta) - x_input[1,:]*mth.sin(self.theta)
         x2 = x_input[0,:]*mth.sin(self.theta) + x_input[1,:]*mth.cos(self.theta)
