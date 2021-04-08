@@ -12,6 +12,8 @@ The script contains the next functions:
 The script also contains the next Model in the form of Classes
 - PolMod:           the main model calculating the minimum entropy
 |- Polynomial
+|- Shift
+|- Rotation
 
 '''
 import tensorflow as tf
@@ -86,12 +88,15 @@ def KL_divergence(mu_i, mu_j):
         The Kullback Leibler divergence as described by Cnossen 2021.
 
     '''
+    
     typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
-    K = mu_i.shape[1]
+    K = mu_j.shape[0]
+    # We start with a constant CRLB, which greatly simplifies the KL-Divergence
     sigma2_i = typical_CRLB * tf.ones(K, dtype = float)
     sigma2_j = typical_CRLB * tf.ones(K, dtype = float)
+    mu_i = mu_i * tf.ones( [K,2] , dtype = float)
 
-    return tf.reduce_sum( (mu_i - mu_j)**2 / sigma2_j[None], 1 )
+    return tf.reduce_sum( (mu_i - mu_j)**2 / sigma2_j[None] , 1)
 
     """
     D_KL = -K/2
@@ -102,37 +107,6 @@ def KL_divergence(mu_i, mu_j):
                  )
     return D_KL
     """
-
-#@tf.function
-def Rel_entropy1(ch1, ch2):
-    '''
-    Parameters
-    ----------
-    x_input : float32 array 
-        The array containing the [x1, x2] locations of all localizations.
-
-    Returns
-    -------
-    rel_entropy : float32
-        The relative entropy as calculated by Cnossen 2021.
-
-    '''
-    nn_ch1, nn_ch2 = ML_functions.vicinity_neighbours_numpy(ch1, ch2, 3)
-    
-    N = ch1.shape[1]
-    rel_entropy = 0
-    j = 0
-    for i in range(N):
-        temp = 0
-        while nn_ch1[j] == i:
-            # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
-            D_KL = KL_divergence(ch1[:,i], ch2[:, int(nn_ch2[j].numpy() ) ]) 
-            temp += tf.math.exp( - D_KL )
-            j += 1                      # the next index
-
-        if temp != 0:                   # ignore empty values
-            rel_entropy += tf.math.log( (1/N) * temp  )
-    return -1.0 * rel_entropy / N
 
 
 #@tf.function
@@ -148,10 +122,22 @@ def Rel_entropy(ch1, ch2):
     rel_entropy : float32
         The relative entropy as calculated by Cnossen 2021.
 
-    '''
-    N = ch1.shape[1]
-
-    return tf.reduce_sum(KL_divergence(ch1, ch2))
+    '''    
+    with Context() as ctx:
+        counts,indices = PostProcessMethods(ctx).FindNeighbors(
+        ch1, ch2, maxDistance=5)
+        
+    KL_D = tf.Variable([], tf.float32)
+    cnts = 0
+    for i in range(len(counts)):
+        KL_D = tf.stack( 
+            tf.math.log( tf.reduce_sum(
+            tf.math.exp( KL_divergence( ch1[i], ch2[ cnts:cnts+counts[i] ] ))
+            ))
+            )
+        cnts = cnts + counts[i]
+        
+    return tf.reduce_sum( KL_D  )
 
     """
     rel_entropy = 0.0
@@ -186,11 +172,11 @@ class PolMod(tf.keras.Model):
     @tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
         #ch2_logits = self.polynomial(ch2)
-        ch2_logits = self.rotation(
+        ch2_mapped = self.rotation(
             self.shift( ch2 )
             )
         
-        y = Rel_entropy(ch1, ch2_logits)
+        y = Rel_entropy(ch1, ch2_mapped)
         return y
 
 class Polynomial(tf.keras.layers.Layer):

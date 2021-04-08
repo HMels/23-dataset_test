@@ -73,13 +73,13 @@ plt.close('all')
 angle = angle0 * np.pi / 180          # angle in radians
 shift = shift0 / img_param.zoom      # shift in units of system [zoom]
 
-if False: # generate Channel via distribution
+if True: # generate Channel via distribution
     channel_A, channel_B, localizations_A, localizations_B = (
         setup.run_channel_generation_distribution(cluster, img_param,
                                                   angle, shift, error = 0.1)
         )
 
-if True: # generate Channel via real data
+if False: # generate Channel via real data
     channel_A, channel_B, localizations_A, localizations_B, img_param = (
         setup.run_channel_generation_realdata(img_param,
                                               angle, shift, error = 0.1)
@@ -88,6 +88,8 @@ if True: # generate Channel via real data
 _ , abs_error_nm = cross_correlation.cross_corr_script(channel_A, channel_B, 
                                                        img_param, shift, pix_search = 1.5,
                                                        output_on = True)
+
+
 #%% Minimum Entropy
 if False:
     ch1 = tf.convert_to_tensor( localizations_A, np.float32)
