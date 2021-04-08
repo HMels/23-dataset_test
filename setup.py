@@ -6,6 +6,8 @@ The functions are:
 - run_channel_generation_distribution()
     which generates the localization dataset according to a certain distributions
     and clusters
+- run_channel_generation_realdata()
+    which generates the localization dataset according to an existing dataset
 
 
 The classes are:
@@ -43,7 +45,7 @@ def run_channel_generation_distribution(cluster, img_param, angle = 0, shift = n
     -------
     channel_A, channel_B : NxN matrix int
         Matrix containing the image of channel A or B.
-    localizations_A, localizations_B : 2xN matrix float
+    localizations_A, localizations_B : Nx2 matrix float
         The actual locations of the localizations.
 
     '''
@@ -55,10 +57,10 @@ def run_channel_generation_distribution(cluster, img_param, angle = 0, shift = n
     localizations_A = generate_dataset.localization_error( localizations_A, img_param, error )
     localizations_B = generate_dataset.localization_error( localizations_B, img_param, error )
     
-    localizations_A[0,:] = localizations_A[0,:]- img_param.img_size_zoom()[0]/2 
-    localizations_B[0,:] = localizations_B[0,:] - img_param.img_size_zoom()[0]/2 
-    localizations_A[1,:] = localizations_A[1,:]- img_param.img_size_zoom()[1]/2 
-    localizations_B[1,:] = localizations_B[1,:] - img_param.img_size_zoom()[1]/2 
+    localizations_A[:,0] = localizations_A[:,0]- img_param.img_size_zoom()[0]/2 
+    localizations_B[:,0] = localizations_B[:,0] - img_param.img_size_zoom()[0]/2 
+    localizations_A[:,1] = localizations_A[:,1]- img_param.img_size_zoom()[1]/2 
+    localizations_B[:,1] = localizations_B[:,1] - img_param.img_size_zoom()[1]/2 
     
     # Induce shift and rotation in Channel B
     if angle:
@@ -107,16 +109,16 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     localizations_B = localizations_A.copy()
     
     # Thinning out the dataset
-    N = len(localizations_A[0,:])
+    N = len(localizations_A[:,0])
     index = np.random.choice(N, int(0.1*N), replace=False)  
-    localizations_A = localizations_A[:, index]
-    localizations_B = localizations_B[:, index]
+    localizations_A = localizations_A[index, :]
+    localizations_B = localizations_B[index, :]
     
     # calculating new boundaries
-    max_x1 = np.max([ localizations_A[0,:].max(), localizations_B[0,:].max() ])
-    max_x2 = np.max([ localizations_A[1,:].max(), localizations_B[1,:].max() ])
-    min_x1 = np.max([ localizations_A[0,:].min(), localizations_B[0,:].min() ])
-    min_x2 = np.max([ localizations_A[1,:].min(), localizations_B[1,:].min() ])
+    max_x1 = np.max([ localizations_A[:,0].max(), localizations_B[:,0].max() ])
+    min_x1 = np.max([ localizations_A[:,0].min(), localizations_B[:,0].min() ])
+    max_x2 = np.max([ localizations_A[:,1].max(), localizations_B[:,1].max() ])
+    min_x2 = np.max([ localizations_A[:,1].min(), localizations_B[:,1].min() ])
     img_param.img_size_x1 = int( (max_x1 - min_x1) / img_param.pix_size_zoom() )
     img_param.img_size_x2 = int( (max_x2 - min_x2) / img_param.pix_size_zoom() )
 
@@ -124,10 +126,10 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     localizations_A = generate_dataset.localization_error( localizations_A, img_param, error )
     localizations_B = generate_dataset.localization_error( localizations_B, img_param, error )
     
-    localizations_A[0,:] = localizations_A[0,:]- img_param.img_size_zoom()[0]/2 
-    localizations_B[0,:] = localizations_B[0,:] - img_param.img_size_zoom()[0]/2 
-    localizations_A[1,:] = localizations_A[1,:]- img_param.img_size_zoom()[1]/2 
-    localizations_B[1,:] = localizations_B[1,:] - img_param.img_size_zoom()[1]/2 
+    localizations_A[:,0] = localizations_A[:,0]- img_param.img_size_zoom()[0]/2 
+    localizations_B[:,0] = localizations_B[:,0] - img_param.img_size_zoom()[0]/2 
+    localizations_A[:,1] = localizations_A[:,1]- img_param.img_size_zoom()[1]/2 
+    localizations_B[:,1] = localizations_B[:,1] - img_param.img_size_zoom()[1]/2 
     
     # Induce shift and rotation in Channel B
     if angle:

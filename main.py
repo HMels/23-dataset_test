@@ -60,8 +60,8 @@ img_param = setup.Image(zoom = 5, pix_size = 100,            #parameters of the 
 
 # The data-clusters to be generated
 cluster = np.empty(2, dtype = setup.Cluster)
-cluster[0] = setup.Cluster(loc_x1 = 5, loc_x2 = 2.5, std_x1 = 2, std_x2 = 4, N = 15)
-cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N = 50)
+cluster[0] = setup.Cluster(loc_x1 = 5, loc_x2 = 2.5, std_x1 = 2, std_x2 = 4, N = 150)
+cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N = 500)
 
 # Deformation of channel B
 angle0 = .5                         # angle of rotation in degrees
@@ -84,16 +84,14 @@ if True: # generate Channel via real data
         setup.run_channel_generation_realdata(img_param,
                                               angle, shift, error = 0.1)
         )
-    
 #%% Cross correlation Calculation
 _ , abs_error_nm = cross_correlation.cross_corr_script(channel_A, channel_B, 
                                                        img_param, shift, pix_search = 1.5,
-                                                       output_on = False)
-
+                                                       output_on = True)
 #%% Minimum Entropy
-if True:
-    ch1 = tf.convert_to_tensor( localizations_A.transpose(), np.float32)
-    ch2 = tf.convert_to_tensor( localizations_B.transpose(), np.float32)
+if False:
+    ch1 = tf.convert_to_tensor( localizations_A, np.float32)
+    ch2 = tf.convert_to_tensor( localizations_B, np.float32)
     
     model = Minimum_Entropy.PolMod(name='Polynomial')
     opt = tf.optimizers.Adam(learning_rate=0.01)
@@ -102,7 +100,7 @@ if True:
     loss = model_apply_grads(ch1, ch2, model, opt)
     
     print('\nMinimum Entropy:')
-    print('  + Shift = ',-1*model.shift.d.numpy())
+    print('  + Shift = ',-1*model.shift.d.numpy()*img_param.zoom)
     print('  + Rotation = ',-1*model.rotation.theta.numpy())
     print('  + Entropy = ',model(ch1, ch2).numpy())
     

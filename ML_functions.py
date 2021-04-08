@@ -22,7 +22,7 @@ def vicinity_neighbours(ch1, ch2, maxDistance):
 
     Returns
     -------
-    neighbours : Nx2 float array
+    neighbours : 2xN float array
         An array containing in the first column the localization index in ch1 
         and in the second column the localization index of its neighbours in ch2.
 
@@ -61,7 +61,7 @@ def vicinity_neighbours_numpy(ch1, ch2, maxDistance):
 
     Returns
     -------
-    neighbours : Nx2 float array
+    neighbours : 2xN float array
         An array containing in the first column the localization index in ch1 
         and in the second column the localization index of its neighbours in ch2.
 

@@ -28,7 +28,7 @@ def get_apply_grad_fn():
         
         Parameters
         ----------
-        x_input : 2xN float32 array
+        x_input : Nx2 float32 array
             Contains the [x1, x2] locs of all localizations.
         model : TensorFlow Keras Model
             The model that needs to be optimized. In our case, This model will be
@@ -201,7 +201,7 @@ class Polynomial(tf.keras.layers.Layer):
             M1 and M2, in which index [i,j] stands for x1**i * x2**j 
             and start at x1 = x1 and x2 = x2
     ----------
-    call : takes input x_input, a 2xN float32 array containing all localizations
+    call : takes input x_input, a Nx2 float32 array containing all localizations
             and transforms them polynomialy using M1 and M2
     '''
     
@@ -234,6 +234,11 @@ class Polynomial(tf.keras.layers.Layer):
 
 #%% new classes
 class Shift(tf.keras.layers.Layer):
+    '''
+    Sublayer Shift
+    ----------
+    -Constructs shift, initial shift = [0,0]
+    '''
     def __init__(self, name = None):
         super().__init__(name=name)
         
@@ -245,6 +250,11 @@ class Shift(tf.keras.layers.Layer):
     
         
 class Rotation(tf.keras.layers.Layer):
+    '''
+    Sublayer Rotation
+    ----------
+    -Constructs Rotation, initial rotation = 0 degrees
+    '''
     def __init__(self, name = None):
         super().__init__(name=name)
         

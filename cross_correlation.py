@@ -4,6 +4,7 @@ This Module calculates the cross-correlation between two channels.
 The output is meant to only calculate the shift
 
 The functions in this module are
+- cross_corr_script()
 - cross_corr()
 - shift_output()
 - output_image()
