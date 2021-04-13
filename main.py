@@ -13,7 +13,6 @@ This file consist of multiple Modules.
 Main.py
 |- setup.py                     File containing everything to setup the program
 |  |- load_data.py              File used to load the example dataset given
-|- functions.py                 File containing miscalenious functions
 |- generate_dataset.py          File containing the functions used to generate
 |  |                                the localization dataset
 |  |- distributions.py          File containing distributions that can be used 
@@ -42,7 +41,6 @@ from pathlib import Path
 import tensorflow as tf
 
 # Modules
-import cross_correlation
 import Minimum_Entropy
 import setup
 import dataset_manipulation
@@ -54,44 +52,29 @@ import dataset_manipulation
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
-
-img_param = setup.Image(zoom = 5, pix_size = 100,            #parameters of the system
-                  img_size_x1 = 50, img_size_x2 = 25, 
-                  Noise = 40)    
-
 # The data-clusters to be generated
 cluster = np.empty(2, dtype = setup.Cluster)
 cluster[0] = setup.Cluster(loc_x1 = 5, loc_x2 = 2.5, std_x1 = 2, std_x2 = 4, N = 350)
 cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N = 1000)
 
 # Deformation of channel B
-angle0 = .5                         # angle of rotation in degrees
-shift0 = np.array([ 10  , 15 ])      # shift in nm
+angle_degrees = .5                              # angle of rotation in degrees
+angle_radians = angle_degrees * np.pi / 180     # angle in radians
+shift_nm = np.array([ 10  , 15 ])               # shift in nm
 
 #%% Channel Generation
-plt.close('all')
-
-angle = angle0 * np.pi / 180          # angle in radians
-shift = shift0 / img_param.zoom      # shift in units of system [zoom]
-
 if True: # generate Channel via distribution
-    channel_A, channel_B, localizations_A, localizations_B = (
-        setup.run_channel_generation_distribution(cluster, img_param,
-                                                  angle, shift, error = 0.1)
+    localizations_A, localizations_B = (
+        setup.run_channel_generation_distribution(cluster, angle_radians, shift_nm, 
+                                                  error = 0.1, Noise = 0.1)
         )
 
 if False: # generate Channel via real data
-    channel_A, channel_B, localizations_A, localizations_B, img_param = (
-        setup.run_channel_generation_realdata(img_param,
-                                              angle, shift, error = 0.1, batch_size = 0.01)
+    localizations_A, localizations_B = (
+        setup.run_channel_generation_realdata(angle_radians, shift_nm, error = 0.1,
+                                              batch_size = 0.01, Noise = 0.1)
         )
-#%% Cross correlation Calculation
-if False:
-    _ , abs_error_nm = cross_correlation.cross_corr_script(channel_A, channel_B, 
-                                                           img_param, shift, pix_search = 1.5,
-                                                           output_on = False)
-
-
+    
 #%% Minimum Entropy
 if True:
     ch1 = tf.Variable( localizations_A, dtype = tf.float32)
@@ -99,13 +82,13 @@ if True:
         
     ch2_mapped = tf.Variable(
         dataset_manipulation.rotation( dataset_manipulation.shift(
-                localizations_B, -1 * shift) , -1 * angle) , 
+                localizations_B, -1 * shift_nm) , -1 * angle_radians) , 
         dtype = tf.float32)
     
     ##########################################################################
     print('\n-------------------- TARGET -------------------------')
-    print('+ Shift = ', shift0, ' [nm]')
-    print('+ Rotation = ', angle0, ' [degrees]')
+    print('+ Shift = ', shift_nm, ' [nm]')
+    print('+ Rotation = ', angle_radians, ' [radians]')
     print('+ Entropy = ', Minimum_Entropy.Rel_entropy(ch1, ch2_mapped ).numpy())
     ##########################################################################
     
@@ -113,20 +96,24 @@ if True:
     opt = tf.optimizers.Adam(learning_rate=.1)
     
     model_apply_grads = Minimum_Entropy.get_apply_grad_fn()
-    loss = model_apply_grads(ch1, ch2, model, opt, error = 0.01)
+    loss = model_apply_grads(ch1, ch2, model, opt, error = .05)
     
     ##########################################################################
     print('\n-------------------- RESULT --------------------------')
-    print('+ Shift = ',model.shift.d.numpy()*img_param.zoom, ' [nm]')
+    print('+ Shift = ',model.shift.d.numpy(), ' [nm]')
     print('+ Rotation = ',model.rotation.theta.numpy()*180/np.pi,' [degrees]')
     print('+ Entropy = ',model(ch1, ch2).numpy())
     
     print('\n-------------------- COMPARISSON ---------------------')
-    print('+ Shift = ', shift0, ' [nm]')
-    print('+ Rotation = ', angle0, ' [degrees]')
+    print('+ Shift = ', shift_nm, ' [nm]')
+    print('+ Rotation = ', angle_degrees, ' [degrees]')
     print('+ Entropy = ', Minimum_Entropy.Rel_entropy(ch1, ch2_mapped ).numpy())
     ##########################################################################
     
+
+#%% plotting
+plt.close('all')
+plt.plot( localizations_A[:,0], localizations_A[:,1], 'ro', ls = '')
     
 #%% Run the cross correlation script Monte Carlo Method
 #exec(open("./run_cross_cor.py").read())

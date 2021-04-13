@@ -32,14 +32,9 @@ def load_data_GaussianSpots(zoom = 10):
     return ch1_data, ch2_data
 
 
-def load_data_localizations(zoom = 10):
+def load_data_localizations():
     '''
     Loads the dataset localizations
-
-    Parameters
-    ----------
-    zoom : int, optional
-        The wanted precission of the system. The default is 10.
 
     Returns
     -------

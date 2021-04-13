@@ -18,7 +18,7 @@ The script also contains the next Model in the form of Classes
 '''
 import tensorflow as tf
 import ML_functions
-from photonpy import PostProcessMethods, Context
+#from photonpy import PostProcessMethods, Context
 
 #%reload_ext tensorboard
 
@@ -60,8 +60,9 @@ def get_apply_grad_fn():
             step_size = tf.abs(y1 - y)
             if i%100 == 0:
                 print('------------------------ ( i = ', i, ' )------------------------')
-                print('- rotation = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
-                print('- Entropy = ',y.numpy())#,'gradients = ',gradients)
+                print('- rotation = ',model.rotation.theta.numpy()*180/3.14,'shift = ',model.shift.d.numpy())
+                print('- Entropy = ',y.numpy())
+          
             
             opt.apply_gradients(zip(gradients, model.trainable_variables))
             
