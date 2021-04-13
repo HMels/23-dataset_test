@@ -33,7 +33,7 @@ def shift(localizations, shift):
     return localizations
 
 
-def rotation(localizations, angle, img_param):
+def rotation(localizations, angle):
     '''
     displace the localizations to have the axis of rotation in the exact middle, 
     then it rotates the localizations by an angle, and then it displaces the 
@@ -57,15 +57,8 @@ def rotation(localizations, angle, img_param):
     cos = np.cos(angle) 
     sin = np.sin(angle)
    
-    mid= np.array([0,0])# img_param.img_size_zoom()/2  
-    #localizations[:,0] = localizations[:,0] - mid[0]
-    #localizations[:,1] = localizations[:,1] - mid[1]
-    
     localizations = np.array([
          (cos * localizations[:,0] - sin * localizations[:,1]) ,
          (sin * localizations[:,0] + cos * localizations[:,1]) 
         ]).transpose()
-    
-    #localizations[:,0] = localizations[:,0] + mid[0]
-    #localizations[:,1] = localizations[:,1] + mid[1]
     return localizations

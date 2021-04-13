@@ -64,7 +64,7 @@ def run_channel_generation_distribution(cluster, img_param, angle = 0, shift = n
     
     # Induce shift and rotation in Channel B
     if angle:
-        localizations_B = dataset_manipulation.rotation( localizations_B, angle, img_param )
+        localizations_B = dataset_manipulation.rotation( localizations_B, angle )
     if shift.all():
         localizations_B = dataset_manipulation.shift( localizations_B, shift )
 
@@ -80,7 +80,7 @@ def run_channel_generation_distribution(cluster, img_param, angle = 0, shift = n
 
 
 def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]),
-                           error = 0.1):
+                           error = 0.1, batch_size = 0.1):
     '''
     Generates a Channel dataset via real data
 
@@ -94,6 +94,8 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
         Shift between channel A and B. The default is np.array([0,0]).
     error : float, optional
         Localization error in pixels. The default is 0.1.
+    batch_size : float, optional
+        The size of the subset for which the mapping will be calculated. The default is 0.1
 
     Returns
     -------
@@ -110,7 +112,7 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     
     # Thinning out the dataset
     N = len(localizations_A[:,0])
-    index = np.random.choice(N, int(0.1*N), replace=False)  
+    index = np.random.choice(N, int(0.01*N), replace=False)  
     localizations_A = localizations_A[index, :]
     localizations_B = localizations_B[index, :]
     
@@ -133,7 +135,7 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     
     # Induce shift and rotation in Channel B
     if angle:
-        localizations_B = dataset_manipulation.rotation( localizations_B, angle, img_param )
+        localizations_B = dataset_manipulation.rotation( localizations_B, angle )
     if shift.all():
         localizations_B = dataset_manipulation.shift( localizations_B, shift )
 

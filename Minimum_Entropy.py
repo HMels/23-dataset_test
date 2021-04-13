@@ -24,7 +24,7 @@ from photonpy import PostProcessMethods, Context
 
 #%% optimization function
 def get_apply_grad_fn():
-    def apply_grad(ch1, ch2, model, opt):
+    def apply_grad(ch1, ch2, model, opt, error = 0.01):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
         
@@ -38,6 +38,8 @@ def get_apply_grad_fn():
         opt : TensorFlow Keras Optimizer 
             The optimizer which our function uses for Optimization. In our case
             this will be a TensorFlow.Optimizer.Adam().
+        error : float
+            The acceptable error in Entropy
 
         Returns
         -------
@@ -49,7 +51,7 @@ def get_apply_grad_fn():
         y1 = 1000
         step_size = 1
         
-        while step_size > 0.01:
+        while step_size > error:
             with tf.GradientTape() as tape:
                 y = model(ch1, ch2)
                         
@@ -58,8 +60,8 @@ def get_apply_grad_fn():
             step_size = tf.abs(y1 - y)
             if i%100 == 0:
                 print('------------------------ ( i = ', i, ' )------------------------')
-                print('- theta = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
-                print('- Entropy = ',y.numpy(),'gradients = ',gradients)
+                print('- rotation = ',model.rotation.theta.numpy(),'shift = ',model.shift.d.numpy())
+                print('- Entropy = ',y.numpy())#,'gradients = ',gradients)
             
             opt.apply_gradients(zip(gradients, model.trainable_variables))
             
@@ -73,44 +75,7 @@ def get_apply_grad_fn():
 #%% functions
 
 #@tf.function
-def KL_divergence(mu_i, mu_j):
-    '''
-    Parameters
-    ----------
-    mu_i, mu_j : 2D float32 array
-        The array containing the [x1, x2] locations of the localizations i and j.
-    sigma_i, sigma_j : 2D float32 array
-        The array containing the [x1, x2] std of the localizations i and j.
-
-    Returns
-    -------
-    D_KL : float
-        The Kullback Leibler divergence as described by Cnossen 2021.
-
-    '''
-    
-    typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
-    K = mu_j.shape[0]
-    # We start with a constant CRLB, which greatly simplifies the KL-Divergence
-    sigma2_i = typical_CRLB * tf.ones(K, dtype = float)
-    sigma2_j = typical_CRLB * tf.ones(K, dtype = float)
-    mu_i = mu_i * tf.ones( [K,2] , dtype = float)
-
-    return tf.reduce_sum( (mu_i - mu_j)**2 / sigma2_j[None] , 1)
-
-    """
-    D_KL = -K/2
-    for k in range(K):
-        D_KL += ( (1/2) * tf.math.log(sigma2_j[k] / sigma2_i[k]) 
-                 + sigma2_i[k] / sigma2_j[k] 
-                 + (1/sigma2_j[k]) * (mu_i[k] - mu_j[k])**2
-                 )
-    return D_KL
-    """
-
-
-#@tf.function
-def Rel_entropy(ch1, ch2):
+def Rel_entropy(ch1,ch2):
     '''
     Parameters
     ----------
@@ -123,35 +88,44 @@ def Rel_entropy(ch1, ch2):
         The relative entropy as calculated by Cnossen 2021.
 
     '''    
-    with Context() as ctx:
-        counts,indices = PostProcessMethods(ctx).FindNeighbors(
-        ch1, ch2, maxDistance=5)
-        
-    KL_D = tf.Variable([], tf.float32)
-    cnts = 0
-    for i in range(len(counts)):
-        KL_D = tf.stack( 
-            tf.math.log( tf.reduce_sum(
-            tf.math.exp( KL_divergence( ch1[i], ch2[ cnts:cnts+counts[i] ] ))
+    N = ch1.shape[0]    
+    expDistances = tf.reduce_sum(
+        tf.math.exp( -1 * KL_divergence( ch1, ch2 ) )  / N
+         , 0 )
+    
+    # delete all zero values
+    boolean_mask = tf.cast(expDistances, dtype=tf.bool)              
+    no_zeros = tf.boolean_mask(expDistances, boolean_mask, axis=0)
+    
+    return -1*tf.reduce_sum( tf.math.log(
+            no_zeros 
             ))
-            )
-        cnts = cnts + counts[i]
-        
-    return tf.reduce_sum( KL_D  )
-
-    """
-    rel_entropy = 0.0
-    for i in range(N):
-        # Calculate KL-Divergence between loc_i in ch1 and its nearest neighbours in ch2
-        D_KL = KL_divergence( ch1[:, i], ch2[:, i] )
-        temp = tf.math.exp( - D_KL )
-
-        if temp != 0.0:                   # ignore empty values
-            rel_entropy += tf.math.log( (1/N) * temp  )
-    return -1.0 * rel_entropy / N
-    """
 
 
+def KL_divergence(ch1, ch2, k = 8):
+    '''
+    Parameters
+    ----------
+    mu_i, mu_j : 2D float32 array
+        The array containing the [x1, x2] locations of the localizations i and j.
+    sigma_i, sigma_j : 2D float32 array
+        The array containing the [x1, x2] std of the localizations i and j.
+    k : int
+        The number of kNN the KL-Divergence should be calculated for
+
+    Returns
+    -------
+    D_KL : float
+        The Kullback Leibler divergence as described by Cnossen 2021.
+
+    '''
+    N_locs = ch1.shape[0]
+    typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
+    sigma2_j = typical_CRLB * tf.ones([k,N_locs,2], dtype = float)
+
+    dist_squared = ML_functions.KNN(ch1,ch2, k)
+      
+    return 0.5*tf.reduce_sum( dist_squared / sigma2_j**2 , 2)
 #%% Classes
 
 class PolMod(tf.keras.Model):
@@ -169,15 +143,15 @@ class PolMod(tf.keras.Model):
         self.shift = Shift()
         self.rotation = Rotation()
     
-    @tf.function # to indicate code should run as graph
+    #@tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
-        #ch2_logits = self.polynomial(ch2)
+        #ch2_mapped = self.polynomial(ch2)
         ch2_mapped = self.rotation(
             self.shift( ch2 )
             )
         
-        y = Rel_entropy(ch1, ch2_mapped)
-        return y
+        return Rel_entropy(ch1, ch2_mapped)
+
 
 class Polynomial(tf.keras.layers.Layer):
     '''
@@ -203,7 +177,7 @@ class Polynomial(tf.keras.layers.Layer):
                               )
         
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
         y = tf.zeros(x_input.shape)[None]
         for i in range(2):
@@ -228,11 +202,11 @@ class Shift(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.d = tf.Variable([0, 0], dtype=tf.float32, trainable=True, name='shift')
+        self.d = tf.Variable([0.0, 0.0], dtype=tf.float32, trainable=True, name='shift')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
-        return x_input + self.d[None]
+        return x_input - self.d[None]
     
         
 class Rotation(tf.keras.layers.Layer):
@@ -246,10 +220,10 @@ class Rotation(tf.keras.layers.Layer):
         
         self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
-        x1 = x_input[:,0]*tf.math.cos(self.theta) - x_input[:,1]*tf.math.sin(self.theta)
-        x2 = x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
+        x1 = x_input[:,0]*tf.math.cos(self.theta) + x_input[:,1]*tf.math.sin(self.theta)
+        x2 = -1* x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
         r = tf.stack([x1, x2], axis =1)
         return r
         
