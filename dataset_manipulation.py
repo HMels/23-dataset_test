@@ -6,21 +6,50 @@ on the localizations.
 This Module contains the next functions
 - shift()
 - rotation()
+- shear()
+- scaling
 '''
 
 import numpy as np
+import tensorflow as tf
+
+#%% Main translation
+def simple_translation(localizations, shift, rotation):
+    return shift_translation( rotation_translation( localizations, rotation), shift)
 
 
-def shift(localizations, shift):
+def complex_translation(localizations, shift, rotation, shear, scaling):
+    return shift_translation( rotation_translation(
+        shear_translation(scaling_translation(localizations, scaling), shear),
+        rotation), shift)
+
+
+#%% Polynomial translation
+def polynomial_translation(localizations, M1, M2):
+    m = M1.shape[0]
+    y = np.zeros(localizations.shape)[None]
+    
+    for i in range(m):
+        for j in range(m):
+            y1=  np.array([
+                M1[i,j] * (localizations[:,0]**i) * ( localizations[:,1]**j),
+                M2[i,j] * (localizations[:,0]**i) * ( localizations[:,1]**j)
+                ]).transpose()[None]
+            y = np.concatenate([y, y1 ], axis = 0) 
+    return tf.reduce_sum(y, axis = 0)
+
+
+#%% The translation functions
+def shift_translation(localizations, shift):
     '''
-    shifts the localizations by shift
+    shifts the localizations
 
     Parameters
     ----------
     localizations: Nx2 matrix float
         The actual locations of the localizations.
     shift : 2 float array
-        The shift of the image in zoom parameters.
+        The shift of the image in nm.
 
     Returns
     -------
@@ -33,20 +62,16 @@ def shift(localizations, shift):
     return localizations
 
 
-def rotation(localizations, angle):
+def rotation_translation(localizations, rotation):
     '''
-    displace the localizations to have the axis of rotation in the exact middle, 
-    then it rotates the localizations by an angle, and then it displaces the 
-    localizations back 
+    rotates the localizations
 
     Parameters
     ----------
     localizations: Nx2 matrix float
         The actual locations of the localizations.
     angle : float
-        The angle of rotation in degrees.
-    img_param : Image()
-        Class containing the data of the image.
+        The angle of rotation in radians.
 
     Returns
     -------
@@ -54,11 +79,59 @@ def rotation(localizations, angle):
         The actual locations of the localizations.
 
     '''
-    cos = np.cos(angle) 
-    sin = np.sin(angle)
+    cos = np.cos(rotation) 
+    sin = np.sin(rotation)
    
     localizations = np.array([
          (cos * localizations[:,0] - sin * localizations[:,1]) ,
          (sin * localizations[:,0] + cos * localizations[:,1]) 
+        ]).transpose()
+    return localizations
+
+
+def shear_translation(localizations, shear):
+    '''
+    Deforms the localizations with a shear translation
+
+    Parameters
+    ----------
+    localizations: Nx2 matrix float
+        The actual locations of the localizations.
+    angle : float 2 array
+        The [x1,x2] shear translation
+
+    Returns
+    -------
+    localizations: Nx2 matrix float
+        The actual locations of the localizations.
+
+    '''
+    localizations = np.array([
+        localizations[:,0] + shear[0]*localizations[:,1] ,
+        shear[1]*localizations[:,0] + localizations[:,1] 
+        ]).transpose()
+    return localizations
+
+
+def scaling_translation(localizations, scaling):
+    '''
+    deforms the localizations with a scaling
+
+    Parameters
+    ----------
+    localizations: Nx2 matrix float
+        The actual locations of the localizations.
+    scaling : float 2 array
+        The [x1,x2] scaling.
+
+    Returns
+    -------
+    localizations: Nx2 matrix float
+        The actual locations of the localizations.
+
+    '''
+    localizations = np.array([
+        scaling[0] * localizations[:,0] ,
+        scaling[1] * localizations[:,1]
         ]).transpose()
     return localizations

@@ -10,11 +10,18 @@ The script contains the next functions:
     
 
 The script also contains the next Model in the form of Classes
-- PolMod:           the main model calculating the minimum entropy
-|- Polynomial
+- Parameterized_module_simple:      the Parameterized model for calculating the minimum entropy
 |- Shift
 |- Rotation
 
+- Parameterized_module_complex:      the Parameterized model for calculating the minimum entropy
+|- Shift
+|- Rotation
+|- Shear
+|- Scaling
+
+- Polynomial_module:                the Polynomial model for calculating the minimum entropy
+|- Polynomial
 '''
 import tensorflow as tf
 import ML_functions
@@ -22,60 +29,9 @@ import ML_functions
 
 #%reload_ext tensorboard
 
-#%% optimization function
-def get_apply_grad_fn():
-    def apply_grad(ch1, ch2, model, opt, error = 0.01):
-        '''
-        The function that minimizes a certain model using TensorFlow GradientTape()
-        
-        Parameters
-        ----------
-        x_input : Nx2 float32 array
-            Contains the [x1, x2] locs of all localizations.
-        model : TensorFlow Keras Model
-            The model that needs to be optimized. In our case, This model will be
-            PolMod() which contains the sublayer Polynomial().
-        opt : TensorFlow Keras Optimizer 
-            The optimizer which our function uses for Optimization. In our case
-            this will be a TensorFlow.Optimizer.Adam().
-        error : float
-            The acceptable error in Entropy
-
-        Returns
-        -------
-        y : float32
-            the relative entropy.
-
-        '''
-        i = 0
-        y1 = 1000
-        step_size = 1
-        
-        while step_size > error:
-            with tf.GradientTape() as tape:
-                y = model(ch1, ch2)
-                        
-            gradients = tape.gradient(y, model.trainable_variables)
-                 
-            step_size = tf.abs(y1 - y)
-            if i%100 == 0:
-                print('------------------------ ( i = ', i, ' )------------------------')
-                print('- rotation = ',model.rotation.theta.numpy()*180/3.14,'shift = ',model.shift.d.numpy())
-                print('- Entropy = ',y.numpy())
-          
-            
-            opt.apply_gradients(zip(gradients, model.trainable_variables))
-            
-            y1 = y
-            i += 1 
-        
-        return y
-    return apply_grad
-
-
 #%% functions
 
-#@tf.function
+@tf.function
 def Rel_entropy(ch1,ch2):
     '''
     Parameters
@@ -103,7 +59,8 @@ def Rel_entropy(ch1,ch2):
             ))
 
 
-def KL_divergence(ch1, ch2, k = 8):
+@tf.function
+def KL_divergence(ch1, ch2, k = 16):
     '''
     Parameters
     ----------
@@ -127,9 +84,11 @@ def KL_divergence(ch1, ch2, k = 8):
     dist_squared = ML_functions.KNN(ch1,ch2, k)
       
     return 0.5*tf.reduce_sum( dist_squared / sigma2_j**2 , 2)
+
+
 #%% Classes
 
-class PolMod(tf.keras.Model):
+class Polynomial_module(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
     ----------
@@ -140,20 +99,60 @@ class PolMod(tf.keras.Model):
     def __init__(self, name=None):
         super().__init__(name=name)
         
-        #self.polynomial = Polynomial()
-        self.shift = Shift()
-        self.rotation = Rotation()
+        self.polynomial = Polynomial()
     
     #@tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
-        #ch2_mapped = self.polynomial(ch2)
+        ch2_mapped = self.polynomial(ch2)
+        return Rel_entropy(ch1, ch2_mapped)
+    
+    
+class Parameterized_module_simple(tf.keras.Model):
+    '''
+    Main Layer for calculating the relative entropy of a certain deformation
+    ----------
+    - it takes the x_input, the [x1,x2] locations of all localizations
+    - gives it a shift and rotation deformation
+    - calculates the relative entropy via Rel_entropy()    
+    '''
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        
+        self.shift = Shift()
+        self.rotation = Rotation()
+    
+    @tf.function # to indicate code should run as graph
+    def call(self, ch1, ch2):
         ch2_mapped = self.rotation(
             self.shift( ch2 )
             )
-        
         return Rel_entropy(ch1, ch2_mapped)
 
 
+class Parameterized_module_complex(tf.keras.Model):
+    '''
+    Main Layer for calculating the relative entropy of a certain deformation
+    ----------
+    - it takes the x_input, the [x1,x2] locations of all localizations
+    - gives it a shift and rotation deformation
+    - calculates the relative entropy via Rel_entropy()    
+    '''
+    def __init__(self, name=None):
+        super().__init__(name=name)
+        
+        self.shift = Shift()
+        self.rotation = Rotation()
+        self.shear = Shear()
+        self.scaling = Scaling()
+    
+    #@tf.function # to indicate code should run as graph
+    def call(self, ch1, ch2):
+        ch2_mapped = self.scaling( self.shear(
+            self.rotation( self.shift( ch2 ) )
+            ) )
+        return Rel_entropy(ch1, ch2_mapped)
+
+#%% Polynomial Mapping Class
 class Polynomial(tf.keras.layers.Layer):
     '''
     Sublayer Polynomial
@@ -168,12 +167,14 @@ class Polynomial(tf.keras.layers.Layer):
     
     def __init__(self, name = None): 
         super().__init__(name=name) 
-        self.M1 = tf.Variable([[0.0, 0.0],
-                               [1.0, 0.0] ],
+        self.M1 = tf.Variable([[0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
                               dtype=tf.float32, trainable=True, name = 'M1'
                               )
-        self.M2 = tf.Variable([[0.0, 1.0],
-                               [0.0, 0.0]],
+        self.M2 = tf.Variable([[0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
                               dtype=tf.float32, trainable=True, name = 'M2'
                               )
         
@@ -181,19 +182,20 @@ class Polynomial(tf.keras.layers.Layer):
     #@tf.function
     def call(self, x_input):
         y = tf.zeros(x_input.shape)[None]
-        for i in range(2):
-            for j in range(2):
+        m = 3
+        for i in range(m):
+            for j in range(m):
                 y = tf.concat([y, 
-                                [tf.transpose(tf.stack([ 
-                                   self.M1[i,j] * ( x_input[0,:]**i ) * ( x_input[1,:]**j ),
-                                   self.M2[i,j] * ( x_input[0,:]**i ) * ( x_input[1,:]**j )
-                                   ], axis = 1))]
+                                [tf.stack([ 
+                                   self.M1[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j ),
+                                   self.M2[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j )
+                                   ], axis = 1)]
                                ], axis = 0)
         
         return tf.reduce_sum(y, axis = 0)
 
 
-#%% new classes
+#%% Parametrized Mapping Class
 class Shift(tf.keras.layers.Layer):
     '''
     Sublayer Shift
@@ -205,9 +207,9 @@ class Shift(tf.keras.layers.Layer):
         
         self.d = tf.Variable([0.0, 0.0], dtype=tf.float32, trainable=True, name='shift')
         
-    #@tf.function
+    @tf.function
     def call(self, x_input):
-        return x_input - self.d[None]
+        return x_input + self.d[None]
     
         
 class Rotation(tf.keras.layers.Layer):
@@ -221,10 +223,47 @@ class Rotation(tf.keras.layers.Layer):
         
         self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
         
+    @tf.function
+    def call(self, x_input):
+        x1 = x_input[:,0]*tf.math.cos(self.theta) - x_input[:,1]*tf.math.sin(self.theta)
+        x2 = x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
+        r = tf.stack([x1, x2], axis =1 )
+        return r
+    
+    
+class Shear(tf.keras.layers.Layer):
+    '''
+    Sublayer Shear
+    ----------
+    -Constructs Shear, initial shear = [0,0]
+    '''
+    def __init__(self, name = None):
+        super().__init__(name=name)
+        
+        self.shear = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shear')
+        
     #@tf.function
     def call(self, x_input):
-        x1 = x_input[:,0]*tf.math.cos(self.theta) + x_input[:,1]*tf.math.sin(self.theta)
-        x2 = -1* x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
-        r = tf.stack([x1, x2], axis =1)
+        x1 = x_input[:,0] + self.shear[0] * x_input[:,1]
+        x2 = self.shear[1] * x_input[:,0] + x_input[:,1]
+        r = tf.stack([x1, x2], axis = 1 )
         return r
+    
+
+class Scaling(tf.keras.layers.Layer):
+    '''
+    Sublayer Scaling
+    ----------
+    -Constructs Scaling, initial scaling = [1,1]
+    '''
+    def __init__(self, name = None):
+        super().__init__(name=name)
         
+        self.scaling = tf.Variable([1,1], dtype=tf.float32, trainable=True, name='Scaling')
+        
+    #@tf.function
+    def call(self, x_input):
+        x1 = self.scaling[0] * x_input[:,0]
+        x2 = self.scaling[1] * x_input[:,1]
+        r = tf.stack([x1, x2], axis = 1 )
+        return r

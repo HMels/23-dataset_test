@@ -21,23 +21,32 @@ import dataset_manipulation
 import load_data
 
 #%% functions
-def run_channel_generation_distribution(cluster, angle = 0, shift = np.array([0,0]),
-                           error = 0.1, Noise = 0.1):
+def run_channel_generation(cluster, shift = np.array([0,0]), angle = 0, 
+                                        shear = np.array([0,0]), scaling = np.array([1,1]), 
+                                        error = .1, Noise = 0.1, realdata = True, autodeform = True):
     '''
-    Generates a Channel dataset via a certain distribution
+    generate Channel
     
     Parameters
     ----------
     cluster : Cluster() array
         Class containing the data of the clusters needed to be generated.
     angle : float, optional
-        Angle of rotation between channel A and B. The default is 0.
+        Angle of rotation between channel A and B in radians. The default is 0.
     shift : float, optional
-        Shift between channel A and B. The default is np.array([0,0]).
+        Shift between channel A and B in pix. The default is np.array([0,0]).
+    shear : float, optional
+        Shear between channel A and B. The default is np.array([0,0])
+    scaling : float, optional
+        Scaling between channel A and B. The default is np.array([1,1])
     error : float, optional
-        Localization error in pixels. The default is 0.1.
+        Localization error in pix. The default is .1.
     Noise : float, optional
         The percentage of Noise per channel. The default is 0.1.
+    realdata : bool, optional
+        True if we want to use real data, False if based on cluster distribution
+    autodeform : bool, optional
+        True if we want to use a known deformation, False if we want to use the real dataset
 
     Returns
     -------
@@ -45,80 +54,25 @@ def run_channel_generation_distribution(cluster, angle = 0, shift = np.array([0,
         The actual locations of the localizations.
 
     '''
-    # Generate the true localizations from the cluster distribution
-    localizations_A = generate_dataset.generate_localizations( cluster )
-    localizations_B = localizations_A.copy()
-    
-    # Generate localization error 
-    localizations_A = generate_dataset.localization_error( localizations_A, error )
-    localizations_B = generate_dataset.localization_error( localizations_B, error )
-    
-    img = np.empty([2,2], dtype = float)
-    img[0,0] = np.min(localizations_A[:,0])
-    img[1,0] = np.max(localizations_A[:,0])
-    img[0,1] = np.min(localizations_A[:,1])
-    img[1,1] = np.max(localizations_A[:,1])
-    mid = (img[0,:] + img[1,:])/2
-    
-    localizations_A[:,0] = localizations_A[:,0] - mid[0]
-    localizations_B[:,0] = localizations_B[:,0] - mid[0] 
-    localizations_A[:,1] = localizations_A[:,1] - mid[1]
-    localizations_B[:,1] = localizations_B[:,1] - mid[1]
-    
-    # Induce shift and rotation in Channel B
-    if angle:
-        localizations_B = dataset_manipulation.rotation( localizations_B, angle )
-    if shift.all():
-        localizations_B = dataset_manipulation.shift( localizations_B, shift )
-
-    # Generate Noise
-    localizations_A = generate_dataset.generate_noise(localizations_A, img, Noise)
-    localizations_B = generate_dataset.generate_noise(localizations_B, img, Noise)
-    
-    return localizations_A, localizations_B
-
-
-def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]),
-                           error = 0.1, batch_size = 0.1, Noise = 0.1):
-    '''
-    Generates a Channel dataset via real data
-
-    Parameters
-    ----------
-    img_param : Image()
-        Class containing the data of the image.
-    angle : float, optional
-        Angle of rotation between channel A and B. The default is 0.
-    shift : float, optional
-        Shift between channel A and B. The default is np.array([0,0]).
-    error : float, optional
-        Localization error in pixels. The default is 0.1.
-    batch_size : float, optional
-        The size of the subset for which the mapping will be calculated. The default is 0.1
-    Noise : float, optional
-        The percentage of Noise per channel. The default is 0.1.
+    if realdata and autodeform: # generate channel based on dataset with induced error 
+        #localizations_A, _ = load_data.load_data_localizations()
+        localizations_A, _ = load_data.load_data_subset(subset = 0.2)
+        localizations_B = localizations_A.copy()
         
-    Returns
-    -------
-    localizations_A, localizations_B : 2xN matrix float
-        The actual locations of the localizations.
+        localizations_A = generate_dataset.localization_error( localizations_A, error )
+        localizations_B = generate_dataset.localization_error( localizations_B, error )
+        
+    elif realdata and not autodeform: # generate channel of real dataset
+        #localizations_A, localizations_B = load_data.load_data_localizations()
+        localizations_A, localizations_B = load_data.load_data_subset(subset = 0.5)
+        
+    else: # generate channel with induced error based on clusters
+        localizations_A = generate_dataset.generate_localizations( cluster ) # locs in nm
+        localizations_B = localizations_A.copy()
+        
+        localizations_A = generate_dataset.localization_error( localizations_A, error )
+        localizations_B = generate_dataset.localization_error( localizations_B, error )
 
-    '''
-    
-    # Generate the true localizations from the cluster distribution
-    localizations_A, _ = load_data.load_data_localizations()
-    localizations_B = localizations_A.copy()
-    
-    # Thinning out the dataset
-    N = len(localizations_A[:,0])
-    index = np.random.choice(N, int(0.01*N), replace=False)  
-    localizations_A = localizations_A[index, :]
-    localizations_B = localizations_B[index, :]
-    
-    # Generate localization error 
-    localizations_A = generate_dataset.localization_error( localizations_A, error )
-    localizations_B = generate_dataset.localization_error( localizations_B, error )
-    
     img = np.empty([2,2], dtype = float)
     img[0,0] = np.min(localizations_A[:,0])
     img[1,0] = np.max(localizations_A[:,0])
@@ -131,17 +85,17 @@ def run_channel_generation_realdata(img_param, angle = 0, shift = np.array([0,0]
     localizations_A[:,1] = localizations_A[:,1] - mid[1]
     localizations_B[:,1] = localizations_B[:,1] - mid[1]
     
-    # Induce shift and rotation in Channel B
-    if angle:
-        localizations_B = dataset_manipulation.rotation( localizations_B, angle )
-    if shift.all():
-        localizations_B = dataset_manipulation.shift( localizations_B, shift )
-
-    # Generate Noise
-    localizations_A = generate_dataset.generate_noise(localizations_A, img, Noise)
-    localizations_B = generate_dataset.generate_noise(localizations_B, img, Noise)
+    if autodeform:
+        # Induce deformation in Channel B
+        localizations_B = dataset_manipulation.complex_translation(localizations_B, 
+                                                                   shift, angle, 
+                                                                   shear, scaling)
+        # Generate Noise
+        localizations_A = generate_dataset.generate_noise(localizations_A, img, Noise)
+        localizations_B = generate_dataset.generate_noise(localizations_B, img, Noise)
     
     return localizations_A, localizations_B
+
 
 #%% classes
 class Cluster():

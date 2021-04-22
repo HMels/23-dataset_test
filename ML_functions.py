@@ -8,6 +8,7 @@ import tensorflow as tf
 #from photonpy import PostProcessMethods, Context
 import numpy as np
 
+@tf.function
 def KNN(ch1, ch2, k):
     '''
     k-Nearest Neighbour Distance calculator
@@ -43,12 +44,12 @@ def KNN(ch1, ch2, k):
     neg_distances = tf.multiply( tf.transpose(abs_distances) , neg_one)
     # get the indices
     _, indx = tf.nn.top_k(neg_distances, k)
-    
+        
     # getting index in the right format for a gather_nd
     indx = tf.reshape(indx,[1, indx.shape[0]*indx.shape[1] ])
     indx1 = np.linspace(0,  N_locs-1, N_locs, dtype = int) * np.ones([k,1], dtype = int)
     indx1 = tf.reshape(indx1, [1, indx.shape[0]*indx.shape[1] ])
-    indx = tf.transpose( tf.stack( [indx1, indx] ) )
+    indx = tf.transpose( tf.stack( [indx, indx1] ) )
     
     knn = tf.reshape( tf.gather_nd( distances, indx ), [k, N_locs, 2] )
     return knn

@@ -12,21 +12,28 @@ Channel alignment
 This file consist of multiple Modules.
 Main.py
 |- setup.py                     File containing everything to setup the program
+|  |
 |  |- load_data.py              File used to load the example dataset given
+|
 |- generate_dataset.py          File containing the functions used to generate
 |  |                                the localization dataset
 |  |- distributions.py          File containing distributions that can be used 
 |                                   for the dataset generation
 |- dataset_manipulation.py      File containing the functions used to deform
 |                                   /manipulate the dataset
-|- Minimum_Entropy.py           File containing the Classes and functions necessary
-|  |                                for the Minimum Entropy Optimization
-|  |- ML_functions.py           File containing certain Machine Learning functions
+|- run_optimization.py          File containing the training loops
+|  |
+|  |- Minimum_Entropy_Parameterized.py 
+|    |                          File containing the Classes and functions necessary
+|    |                              for Minimum Entropy 
+|    |- ML_functions.py           File containing certain Machine Learning functions
+|
+|- output_text.py               File containing the code for the output text
+|- generate_image.py            File containing the scripts to generate an image
 
 
 The classes can be found in setup.py
 - Cluster()
-- Image()
 
 Together with the function:
 - run_channel_generation()
@@ -38,82 +45,83 @@ It is optional to also run a cross-correlation program
 import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
-import tensorflow as tf
 
 # Modules
-import Minimum_Entropy
 import setup
-import dataset_manipulation
+import run_optimization
+import output_text
+import generate_image
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
 
-#%% input parameters 
+plt.close('all')
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
-# The data-clusters to be generated
+#%% input parameters 
+pix_size = 100
+
+# The data-clusters to be generated in pix
 cluster = np.empty(2, dtype = setup.Cluster)
-cluster[0] = setup.Cluster(loc_x1 = 5, loc_x2 = 2.5, std_x1 = 2, std_x2 = 4, N = 350)
-cluster[1] = setup.Cluster(loc_x1 = 25, loc_x2 = 15, std_x1 = 8, std_x2 = 3, N = 1000)
+cluster[0] = setup.Cluster(loc_x1 = 50, loc_x2 = 40, std_x1 = 20, 
+                           std_x2 = 40, N = 5000)
+cluster[1] = setup.Cluster(loc_x1 = 200, loc_x2 = 100, std_x1 = 70, 
+                           std_x2 = 30, N = 1500)
+
+## System Parameters
+error = 0.1                                         # the localization error in pix
+Noise = 0.1                                         # the percentage of noise
 
 # Deformation of channel B
-angle_degrees = .5                              # angle of rotation in degrees
-angle_radians = angle_degrees * np.pi / 180     # angle in radians
-shift_nm = np.array([ 10  , 15 ])               # shift in nm
+angle_degrees = 0.5                                 # angle of rotation in degrees
+shift_nm = np.array([ 80  , 120 ])                  # shift in nm
+shear = np.array([0, 0])                            # shear
+scaling_rel = np.array([0,0])                       # amount of relative scaling
+
+shift_pix = shift_nm / pix_size                     # shift in pix
+angle_radians = angle_degrees * np.pi / 180         # angle in radians
+scaling = np.array([1, 1]) + scaling_rel            # scaling 
+
+# Mapping Function
+Map_options = np.array(['Polynomial', 'Parameterized_simple','Parameterized_complex'])
+Map_opt = Map_options[1]
+
+# Batches used in training 
+Batch_on = True
+batch_size = 6000
+num_batches = np.array([3,3], dtype = int)
 
 #%% Channel Generation
-if True: # generate Channel via distribution
-    localizations_A, localizations_B = (
-        setup.run_channel_generation_distribution(cluster, angle_radians, shift_nm, 
-                                                  error = 0.1, Noise = 0.1)
-        )
+realdata = True
+autodeform = False 
+# if realdata && autodeform  -> Generate channels via dataset with known deformation
+# if realdata && !autodeform -> Generate dataset with unknown everything
+# else                       _> Generate channels via distribution   
+localizations_A, localizations_B = setup.run_channel_generation(
+    cluster, shift_pix, angle_radians, shear, scaling, error, Noise, 
+    realdata, autodeform ) 
 
-if False: # generate Channel via real data
-    localizations_A, localizations_B = (
-        setup.run_channel_generation_realdata(angle_radians, shift_nm, error = 0.1,
-                                              batch_size = 0.01, Noise = 0.1)
-        )
-    
+
+output_text.Info_batch(localizations_A.shape[0], num_batches, batch_size, Batch_on)
+
 #%% Minimum Entropy
-if True:
-    ch1 = tf.Variable( localizations_A, dtype = tf.float32)
-    ch2 = tf.Variable( localizations_B, dtype = tf.float32)
-        
-    ch2_mapped = tf.Variable(
-        dataset_manipulation.rotation( dataset_manipulation.shift(
-                localizations_B, -1 * shift_nm) , -1 * angle_radians) , 
-        dtype = tf.float32)
-    
-    ##########################################################################
-    print('\n-------------------- TARGET -------------------------')
-    print('+ Shift = ', shift_nm, ' [nm]')
-    print('+ Rotation = ', angle_radians, ' [radians]')
-    print('+ Entropy = ', Minimum_Entropy.Rel_entropy(ch1, ch2_mapped ).numpy())
-    ##########################################################################
-    
-    model = Minimum_Entropy.PolMod(name='Polynomial')
-    opt = tf.optimizers.Adam(learning_rate=.1)
-    
-    model_apply_grads = Minimum_Entropy.get_apply_grad_fn()
-    loss = model_apply_grads(ch1, ch2, model, opt, error = .05)
-    
-    ##########################################################################
-    print('\n-------------------- RESULT --------------------------')
-    print('+ Shift = ',model.shift.d.numpy(), ' [nm]')
-    print('+ Rotation = ',model.rotation.theta.numpy()*180/np.pi,' [degrees]')
-    print('+ Entropy = ',model(ch1, ch2).numpy())
-    
-    print('\n-------------------- COMPARISSON ---------------------')
-    print('+ Shift = ', shift_nm, ' [nm]')
-    print('+ Rotation = ', angle_degrees, ' [degrees]')
-    print('+ Entropy = ', Minimum_Entropy.Rel_entropy(ch1, ch2_mapped ).numpy())
-    ##########################################################################
-    
+model, loss = run_optimization.initialize_optimizer(
+    localizations_A, localizations_B, Map_opt, Batch_on,
+    batch_size, num_batches, learning_rate=.05)
 
-#%% plotting
+
+#%% output
+if (autodeform) and (not realdata):
+    ch1, ch2, ch2_mapped_model = output_text.generate_output(
+        localizations_A, localizations_B, model, pix_size, Map_opt, shift_pix,
+        angle_radians, shear, scaling )
+        
+
+#%%
+import generate_image
+
+precision = 5 # precision of image in nm
+
 plt.close('all')
-plt.plot( localizations_A[:,0], localizations_A[:,1], 'ro', ls = '')
-    
-#%% Run the cross correlation script Monte Carlo Method
-#exec(open("./run_cross_cor.py").read())
+generate_image.plot_channel(ch1, ch2, ch2_mapped_model, precision, pix_size)

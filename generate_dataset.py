@@ -34,7 +34,7 @@ def generate_localizations(cluster):
     return localizations 
 
 
-def localization_error(localizations, error = 0.1):
+def localization_error(localizations, error = 10):
     '''
     Generates a Gaussian localization error over the localizations 
 
@@ -43,7 +43,7 @@ def localization_error(localizations, error = 0.1):
     localizations: 2xN matrix float
         The actual locations of the localizations.
     error : float, optional
-        The localization error in pixels. The default is 0.1.
+        The localization error in nm. The default is 10
 
     Returns
     -------
