@@ -2,7 +2,9 @@
 from photonpy import Dataset
 import numpy as np
 
-def load_data_GaussianSpots(zoom = 10):
+
+
+def load_data_GaussianSpots(zoom = 10, pix_size = 100):
     '''
     Loads the dataset before localization (zo localizations have gaussian
                                            spots around them)
@@ -29,10 +31,10 @@ def load_data_GaussianSpots(zoom = 10):
     ch1_data[:,[0, 1]] = ch1_data[:,[1, 0]]
     ch2_data[:,[0, 1]] = ch2_data[:,[1, 0]]
     
-    return ch1_data, ch2_data
+    return ch1_data*pix_size, ch2_data*pix_size
 
 
-def load_data_localizations():
+def load_data_localizations(pix_size = 100):
     '''
     Loads the dataset localizations
 
@@ -53,10 +55,10 @@ def load_data_localizations():
     ch1_data[:,[0, 1]] = ch1_data[:,[1, 0]]
     ch2_data[:,[0, 1]] = ch2_data[:,[1, 0]]
     
-    return ch1_data, ch2_data
+    return ch1_data*pix_size, ch2_data*pix_size
 
 
-def load_data_subset(subset = 0.1):
+def load_data_subset(subset = 0.1, pix_size = 100):
     '''
     Loads a subset of the dataset localizations
     
@@ -102,4 +104,4 @@ def load_data_subset(subset = 0.1):
     ch1_data = ch1_data[ indx1, : ]
     ch2_data = ch2_data[ indx2, : ]
         
-    return ch1_data, ch2_data
+    return ch1_data*pix_size, ch2_data*pix_size

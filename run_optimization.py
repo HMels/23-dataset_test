@@ -6,11 +6,12 @@ Created on Wed Apr 14 15:40:25 2021
 """
 import tensorflow as tf
 import Minimum_Entropy
+#import Minimum_Entropy_eager as Minimum_Entropy
 import numpy as np
 
 #%% initialize function
 def initialize_optimizer(locs_A, locs_B, Map_opt='Parameterized_simple' , Batch_on=False, batch_size=None,
-                         num_batches=None, learning_rate=.05):
+                         num_batches=None, learning_rate=.001, epochs = 50):
     
     # decide what mapping to optimize
     if Map_opt == 'Parameterized_simple':  
@@ -31,7 +32,7 @@ def initialize_optimizer(locs_A, locs_B, Map_opt='Parameterized_simple' , Batch_
         model_apply_grads = get_apply_grad_fn_nobatch()
     
     opt = tf.optimizers.Adam(learning_rate)
-    loss = model_apply_grads(ch1, ch2, model, opt)
+    loss = model_apply_grads(ch1, ch2, model, opt, epochs)
     
     return model, loss
     
@@ -39,8 +40,8 @@ def initialize_optimizer(locs_A, locs_B, Map_opt='Parameterized_simple' , Batch_
 
 #%% optimization function
 def get_apply_grad_fn_nobatch():
-    @tf.function
-    def apply_grad(ch1, ch2, model, opt):
+    #@tf.function
+    def apply_grad(ch1, ch2, model, opt, epochs):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
         This function does not use batches
@@ -55,6 +56,8 @@ def get_apply_grad_fn_nobatch():
         opt : TensorFlow Keras Optimizer 
             The optimizer which our function uses for Optimization. In our case
             this will be a TensorFlow.Optimizer.Adam().
+        epochs : int
+            Number of iterations for Gradient Descent
 
         Returns
         -------
@@ -63,7 +66,7 @@ def get_apply_grad_fn_nobatch():
 
         '''
         print('Loading, this might take a while...')
-        epochs = 30
+        y1 =1 
         for i in range(epochs):
             with tf.GradientTape() as tape:
                 y = model(ch1, ch2)
@@ -72,17 +75,21 @@ def get_apply_grad_fn_nobatch():
                 
             if i%10 == 0:
                 print('i = ',i,' / ', epochs)
+                print(y)
+                print(model.trainable_variables)
           
+            if np.abs(y1-y) < 4:
+                break
             
             opt.apply_gradients(zip(gradients, model.trainable_variables))
-
+            y1 = y
         return y
     return apply_grad
 
 
 def get_apply_grad_fn_batch():
     @tf.function
-    def apply_grad(ch1, ch2, model, opt):
+    def apply_grad(ch1, ch2, model, opt, epochs):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
         This function does not use batches
@@ -97,6 +104,8 @@ def get_apply_grad_fn_batch():
         opt : TensorFlow Keras Optimizer 
             The optimizer which our function uses for Optimization. In our case
             this will be a TensorFlow.Optimizer.Adam().
+        epochs : int
+            Number of iterations for Gradient Descent
 
         Returns
         -------
@@ -105,7 +114,7 @@ def get_apply_grad_fn_batch():
 
         '''
         print('Loading, this might take a while...')
-        epochs = 400
+        epochs = 200
         for i in range(epochs):
             for j in range(len(ch1)):
                 with tf.GradientTape() as tape:
@@ -113,8 +122,8 @@ def get_apply_grad_fn_batch():
                             
                 gradients = tape.gradient(y, model.trainable_variables)
                      
-                if i%5 == 0 and j%4 == 0:
-                    print('i = ',i,' / ', epochs,'    j = ', j, ' / ',len(ch1))
+                if i%10 == 0:
+                    print('i = ',i,' / ', epochs)
               
                 opt.apply_gradients(zip(gradients, model.trainable_variables))
                 

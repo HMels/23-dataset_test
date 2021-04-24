@@ -6,6 +6,7 @@ Created on Thu Apr 22 14:26:22 2021
 """
 import numpy as np
 import tensorflow as tf
+import time
 
 import dataset_manipulation
 
@@ -35,21 +36,24 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
         if perc < 100:
             print('I: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
                   batch_size,' points per batch and ',N, ' points total)',
-                  ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy')
+                  ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy.\n')
+            input("Press Enter to continue...")
         else: 
             print('I: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
                   batch_size,' points per batch and ',N, ' points total)',
-                  ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy. \nThe setup seems to be OK and the amount of Batches is sufficient')
+                  ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy. \nThe setup seems to be OK and the amount of Batches is sufficient.\n')
+            time.sleep(2)
     else: 
         print('I: the total system contains', N, ' points. The setup seems to be OK',
-              '\nNote that for big numbers, batches shoud be used.')
-    input("Press Enter to continue...")
+              '\nNote that for big N, batches shoud be used.\n')
+        time.sleep(2)
 
 
 #%%
-def generate_output(localizations_A, localizations_B, model, pix_size = 100,
+def generate_output(localizations_A, localizations_B, model,
                     Map_opt='Parameterized_simple', shift=np.array([0,0]), 
-                    angle=0, shear=np.array([0,0]), scaling=np.array([1,1]) 
+                    angle=0, shear=np.array([0,0]), scaling=np.array([1,1]),
+                    print_output = True
                     ):
     '''
     generates output channel and text output
@@ -59,19 +63,19 @@ def generate_output(localizations_A, localizations_B, model, pix_size = 100,
     localizations_A ,localizations_B : Nx2 float np.array
         array containing the localizations in channel A and B.
     model : tf.keras.layer.Layer
-        DESCRIPTION.
-    pix_size : float, optional
-        size of pixels in nm. The default is 100.
+        The model used for optimizing a mapping.
     Map_opt : str , optional
         Which mapping is used. The default is 'Parameterized_simple'.
     shift : 2 float array, optional
-        shift of image in pix. The default is np.array([0,0]).
+        shift of image in nm. The default is np.array([0,0]).
     angle : float, optional
         angle of rotation in radians. The default is 0.
     shear : 2 float array, optional
         amount of shear. The default is np.array([0,0]).
     scaling : 2 float array, optional
         amount of scaling. The default is np.array([1,1]).
+    print_output : bool
+        True if you want to print the results vs comparisson
 
     Returns
     -------
@@ -97,22 +101,23 @@ def generate_output(localizations_A, localizations_B, model, pix_size = 100,
             localizations_B, model.shift.d.numpy() , model.rotation.theta.numpy() )
             , dtype = tf.float32)
        
-        print_result_parameterized_simple(model, shift, angle, ch1, 
-                                          ch2_mapped_model, ch2_mapped)
+        if print_output:
+            print_result_parameterized_simple(model, shift, angle, ch1, 
+                                              ch2_mapped_model, ch2_mapped)
         
     if Map_opt == 'Parameterized_complex':
         ch2_mapped_model = tf.Variable( dataset_manipulation.complex_translation(
             localizations_B, model.shift.d, model.rotation.theta, model.shear.shear,
             model.scaling.scaling) , dtype = tf.float32)
-        
-        print_result_parameterized_complex(model, shift, angle, shear, scaling, 
-                                           ch1, ch2_mapped_model, ch2_mapped)
+        if print_output:
+            print_result_parameterized_complex(model, shift, angle, shear, scaling, 
+                                               ch1, ch2_mapped_model, ch2_mapped)
     
     if Map_opt == 'Polynomial':
         ch2_mapped_model = tf.Variable( dataset_manipulation.polynomial_translation(
             localizations_B, model.polynomial.M1, model.polynomial.M2) )
         
-    return ch1, ch2, ch2_mapped_model
+    return ch1, ch2, ch2_mapped_model #, ch2_mapped
 
 #%% output functions 
 def print_result_parameterized_simple(model, shift, angle, ch1, ch2_mapped_model, 

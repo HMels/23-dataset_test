@@ -64,7 +64,7 @@ def run_channel_generation(cluster, shift = np.array([0,0]), angle = 0,
         
     elif realdata and not autodeform: # generate channel of real dataset
         #localizations_A, localizations_B = load_data.load_data_localizations()
-        localizations_A, localizations_B = load_data.load_data_subset(subset = 0.5)
+        localizations_A, localizations_B = load_data.load_data_subset(subset = 0.2)
         
     else: # generate channel with induced error based on clusters
         localizations_A = generate_dataset.generate_localizations( cluster ) # locs in nm
