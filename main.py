@@ -26,7 +26,6 @@ Main.py
 |  |- Minimum_Entropy_Parameterized.py 
 |    |                          File containing the Classes and functions necessary
 |    |                              for Minimum Entropy 
-|    |- ML_functions.py           File containing certain Machine Learning functions
 |
 |- output_text.py               File containing the code for the output text
 |- generate_image.py            File containing the scripts to generate an image
@@ -50,7 +49,7 @@ import tensorflow as tf
 # Modules
 import setup
 import run_optimization
-import run_optimization_testversion as run_optimization
+#import run_optimization_testversion as run_optimization
 import output_text
 import generate_image
 
@@ -84,7 +83,7 @@ scaling = np.array([1, 1]) + scaling_rel            # scaling
 
 ## Dataset
 realdata = True
-autodeform = True 
+autodeform = False 
 # if realdata && autodeform  -> Generate channels via dataset with known deformation
 # if realdata && !autodeform -> Generate dataset with unknown everything
 # else                       _> Generate channels via distribution   

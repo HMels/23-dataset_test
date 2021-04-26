@@ -2,7 +2,7 @@
 from photonpy import Dataset
 import numpy as np
 
-
+#Dataset.align()
 
 def load_data_GaussianSpots(zoom = 10, pix_size = 100):
     '''
@@ -24,6 +24,9 @@ def load_data_GaussianSpots(zoom = 10, pix_size = 100):
     ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
     ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
     
+    print('Alignning both datasets')
+    Dataset.align(ch1, ch2)
+
     ch1_data = ch1.renderGaussianSpots(zoom = zoom)
     ch2_data = ch2.renderGaussianSpots(zoom = zoom)
     
@@ -47,6 +50,9 @@ def load_data_localizations(pix_size = 100):
 
     ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
     ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
+    
+    print('Alignning both datasets')
+    Dataset.align(ch1, ch2)
     
     # Getting the data in the right format 
     # e.g. x1 being the longest row 
@@ -77,6 +83,8 @@ def load_data_subset(subset = 0.1, pix_size = 100):
     ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
     ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
     
+    print('Alignning both datasets')
+    Dataset.align(ch1, ch2)
     # Getting the data in the right format 
     # e.g. x1 being the longest row 
     ch1_data = ch1.pos

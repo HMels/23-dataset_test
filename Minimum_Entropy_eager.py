@@ -1,4 +1,4 @@
-# Minimum_Entropy.py
+# Minimum_Entropy_eager.py
 '''
 This script is used to calculate the Mapping via the Minimum Entropy Method described by Cnossen2021
 
@@ -30,7 +30,7 @@ import numpy as np
 
 #%% functions
 
-@tf.function
+#@tf.function
 def Rel_entropy(ch1,ch2):
     '''
     Parameters
@@ -58,8 +58,8 @@ def Rel_entropy(ch1,ch2):
             ))
 
 
-@tf.function
-def KL_divergence(ch1, ch2, k = 32):
+#@tf.function
+def KL_divergence(ch1, ch2, k = 16):
     '''
     Parameters
     ----------
@@ -86,7 +86,7 @@ def KL_divergence(ch1, ch2, k = 32):
 
 
 #%% KNN
-@tf.function
+#@tf.function
 def KNN(ch1, ch2, k):
     '''
     k-Nearest Neighbour Distance calculator
@@ -148,7 +148,7 @@ class Polynomial_module(tf.keras.Model):
         
         self.polynomial = Polynomial()
     
-    @tf.function # to indicate code should run as graph
+    #@tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
         ch2_mapped = self.polynomial(ch2)
         return Rel_entropy(ch1, ch2_mapped)
@@ -168,7 +168,7 @@ class Parameterized_module_simple(tf.keras.Model):
         self.shift = Shift()
         self.rotation = Rotation()
     
-    @tf.function # to indicate code should run as graph
+    #@tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
         ch2_mapped = self.rotation(
             self.shift( ch2 )
@@ -192,7 +192,7 @@ class Parameterized_module_complex(tf.keras.Model):
         self.shear = Shear()
         self.scaling = Scaling()
     
-    @tf.function # to indicate code should run as graph
+    #@tf.function # to indicate code should run as graph
     def call(self, ch1, ch2):
         ch2_mapped = self.scaling( self.shear(
             self.rotation( self.shift( ch2 ) )
@@ -211,7 +211,7 @@ class Polynomial(tf.keras.layers.Layer):
     call : takes input x_input, a Nx2 float32 array containing all localizations
             and transforms them polynomialy using M1 and M2
     '''
-     
+    
     def __init__(self, name = None): 
         super().__init__(name=name) 
         self.M1 = tf.Variable([[0.0, 0.0],
@@ -222,14 +222,14 @@ class Polynomial(tf.keras.layers.Layer):
                                [0.0, 0.0]],
                               dtype=tf.float32, trainable=True, name = 'M2'
                               )
+        self.m = 2
         
-     
-    @tf.function
+        
+    #@tf.function
     def call(self, x_input):
         y = tf.zeros(x_input.shape)[None]
-        m = 2
-        for i in range(m):
-            for j in range(m):
+        for i in range(self.m):
+            for j in range(self.m):
                 y = tf.concat([y, 
                                 [tf.stack([ 
                                    self.M1[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j ),
@@ -250,9 +250,9 @@ class Shift(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.d = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shift')
+        self.d = tf.Variable([-40, -30], dtype=tf.float32, trainable=True, name='shift')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
         return x_input + self.d[None]
     
@@ -266,9 +266,9 @@ class Rotation(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.theta = tf.Variable(0, dtype=tf.float32, trainable=False, name='rotation')
+        self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
         x1 = x_input[:,0]*tf.math.cos(self.theta) - x_input[:,1]*tf.math.sin(self.theta)
         x2 = x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
@@ -285,9 +285,9 @@ class Shear(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.shear = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shear')
+        self.shear = tf.Variable([0,0], dtype=tf.float32, trainable=False, name='shear')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
         x1 = x_input[:,0] + self.shear[0] * x_input[:,1]
         x2 = self.shear[1] * x_input[:,0] + x_input[:,1]
@@ -304,11 +304,12 @@ class Scaling(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.scaling = tf.Variable([1,1], dtype=tf.float32, trainable=True, name='Scaling')
+        self.scaling = tf.Variable([1,1], dtype=tf.float32, trainable=False, name='Scaling')
         
-    @tf.function
+    #@tf.function
     def call(self, x_input):
         x1 = self.scaling[0] * x_input[:,0]
         x2 = self.scaling[1] * x_input[:,1]
         r = tf.stack([x1, x2], axis = 1 )
         return r
+    

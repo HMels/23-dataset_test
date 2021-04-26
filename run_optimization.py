@@ -40,7 +40,7 @@ def initialize_optimizer(locs_A, locs_B, Map_opt='Parameterized_simple' , Batch_
 
 #%% optimization function
 def get_apply_grad_fn_nobatch():
-    #@tf.function
+    @tf.function
     def apply_grad(ch1, ch2, model, opt, epochs):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
@@ -66,23 +66,13 @@ def get_apply_grad_fn_nobatch():
 
         '''
         print('Loading, this might take a while...')
-        y1 =1 
         for i in range(epochs):
             with tf.GradientTape() as tape:
                 y = model(ch1, ch2)
                         
             gradients = tape.gradient(y, model.trainable_variables)
-                
-            if i%10 == 0:
-                print('i = ',i,' / ', epochs)
-                print(y)
-                print(model.trainable_variables)
-          
-            if np.abs(y1-y) < 4:
-                break
             
             opt.apply_gradients(zip(gradients, model.trainable_variables))
-            y1 = y
         return y
     return apply_grad
 
@@ -121,9 +111,6 @@ def get_apply_grad_fn_batch():
                     y = model(ch1[j], ch2[j])
                             
                 gradients = tape.gradient(y, model.trainable_variables)
-                     
-                if i%10 == 0:
-                    print('i = ',i,' / ', epochs)
               
                 opt.apply_gradients(zip(gradients, model.trainable_variables))
                 
