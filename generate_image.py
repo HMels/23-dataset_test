@@ -86,7 +86,7 @@ def generate_matrix(locs , bounds):
     ----------
     img_param : Image()
         Class containing the data of the image.
-    localizations : Nx2 matrix float
+    locs : Nx2 matrix float
         The actual locations of the localizations.
     bounds : 2x2 matrix 
         containing the bounds of all three systems

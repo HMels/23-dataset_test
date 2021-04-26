@@ -5,21 +5,12 @@ Created on Wed Apr 14 15:40:25 2021
 @author: Mels
 """
 import tensorflow as tf
-import Minimum_Entropy
-#import Minimum_Entropy_eager as Minimum_Entropy
 import numpy as np
 
 #%% initialize function
-def initialize_optimizer(locs_A, locs_B, Map_opt='Parameterized_simple' , Batch_on=False, batch_size=None,
+def run_optimization(locs_A, locs_B, model, Batch_on=False, batch_size=None,
                          num_batches=None, learning_rate=.001, epochs = 50):
     
-    # decide what mapping to optimize
-    if Map_opt == 'Parameterized_simple':  
-        model = Minimum_Entropy.Parameterized_module_simple(name='Parameterized_simple')
-    if Map_opt == 'Parameterized_complex':  
-        model = Minimum_Entropy.Parameterized_module_complex(name='Parameterized_complex')
-    if Map_opt == 'Polynomial':
-        model = Minimum_Entropy.Polynomial_module(name='Polynomial')
     
     # decide if dataset will be split in batches
     if Batch_on:
@@ -65,7 +56,8 @@ def get_apply_grad_fn_nobatch():
             the relative entropy.
 
         '''
-        print('Loading, this might take a while...')
+        
+        print('\nLoading, this might take a while...')
         for i in range(epochs):
             with tf.GradientTape() as tape:
                 y = model(ch1, ch2)
@@ -103,8 +95,11 @@ def get_apply_grad_fn_batch():
             the relative entropy.
 
         '''
-        print('Loading, this might take a while...')
+        
+        print('\nLoading, this might take a while...')
+        
         epochs = 200
+        
         for i in range(epochs):
             for j in range(len(ch1)):
                 with tf.GradientTape() as tape:
@@ -151,7 +146,6 @@ def split_grid(locs, num_batches, batch_size):
     locs_grid = []
     for i in range(num_batches[0]):
         for j in range(num_batches[1]):
-            
             l_grid = img[0,:] + np.array([ i*grid_size[0], j*grid_size[1] ])
             r_grid = img[0,:] + np.array([ (i+1)*grid_size[0], (j+1)*grid_size[1] ])
             

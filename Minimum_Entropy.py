@@ -14,17 +14,11 @@ The script also contains the next Model in the form of Classes
 |- Shift
 |- Rotation
 
-- Parameterized_module_complex:      the Parameterized model for calculating the minimum entropy
-|- Shift
-|- Rotation
-|- Shear
-|- Scaling
 
 - Polynomial_module:                the Polynomial model for calculating the minimum entropy
 |- Polynomial
 '''
 import tensorflow as tf
-import numpy as np
 
 #%reload_ext tensorboard
 
@@ -80,57 +74,9 @@ def KL_divergence(ch1, ch2, k = 32):
     typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
     sigma2_j = typical_CRLB * tf.ones([k,N_locs,2], dtype = float)
 
-    dist_squared = KNN(ch1,ch2, k)
+    dist_squared = tf.square(ch1 - ch2)
       
     return 0.5*tf.reduce_sum( dist_squared / sigma2_j**2 , 2)
-
-
-#%% KNN
-@tf.function
-def KNN(ch1, ch2, k):
-    '''
-    k-Nearest Neighbour Distance calculator
-
-    Parameters
-    ----------
-    ch1, ch2 : 2D float32 array
-        The array containing the [x1, x2] locations of the localizations i and j.
-    sigma_i, sigma_j : 2D float32 array
-        The array containing the [x1, x2] std of the localizations i and j.
-    k : int
-        The number of kNN the KL-Divergence should be calculated for
-
-    Returns
-    -------
-    knn : [k, N, 2] TensorFlow Tensor
-        Tensor Containing the squared [x1,x2] distances for k rows of kNN, 
-        for all N localizations in the colums.
-
-    '''
-    N_locs = ch1.shape[0]
-    # distances contains all distances with the second axis being the distances to ch1
-    # and the third axis being the [x1,x2] axis
-    
-    distances = tf.square(tf.add( 
-        ch1[None,:,:] , tf.negative( ch2[:,None,:] )
-        ))
-    abs_distances = tf.reduce_sum(distances, 2)
-    
-    neg_one = tf.constant(-1.0, dtype=tf.float32)
-    # to find the nearest points, we find the farthest points based on negative distances
-    # we need this trick because tensorflow has top_k api and no closest_k or reverse=True api
-    neg_distances = tf.multiply( tf.transpose(abs_distances) , neg_one)
-    # get the indices
-    _, indx = tf.nn.top_k(neg_distances, k)
-        
-    # getting index in the right format for a gather_nd
-    indx = tf.reshape(indx,[1, indx.shape[0]*indx.shape[1] ])
-    indx1 = np.linspace(0,  N_locs-1, N_locs, dtype = int) * np.ones([k,1], dtype = int)
-    indx1 = tf.reshape(indx1, [1, indx.shape[0]*indx.shape[1] ])
-    indx = tf.transpose( tf.stack( [indx, indx1] ) )
-    
-    knn = tf.reshape( tf.gather_nd( distances, indx ), [k, N_locs, 2] )
-    return knn
 
 
 #%% Classes
@@ -154,7 +100,7 @@ class Polynomial_module(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-class Parameterized_module_simple(tf.keras.Model):
+class Parameterized_module(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
     ----------
@@ -175,29 +121,6 @@ class Parameterized_module_simple(tf.keras.Model):
             )
         return Rel_entropy(ch1, ch2_mapped)
 
-
-class Parameterized_module_complex(tf.keras.Model):
-    '''
-    Main Layer for calculating the relative entropy of a certain deformation
-    ----------
-    - it takes the x_input, the [x1,x2] locations of all localizations
-    - gives it a shift and rotation deformation
-    - calculates the relative entropy via Rel_entropy()    
-    '''
-    def __init__(self, name=None):
-        super().__init__(name=name)
-        
-        self.shift = Shift()
-        self.rotation = Rotation()
-        self.shear = Shear()
-        self.scaling = Scaling()
-    
-    @tf.function # to indicate code should run as graph
-    def call(self, ch1, ch2):
-        ch2_mapped = self.scaling( self.shear(
-            self.rotation( self.shift( ch2 ) )
-            ) )
-        return Rel_entropy(ch1, ch2_mapped)
 
 #%% Polynomial Mapping Class
 class Polynomial(tf.keras.layers.Layer):
@@ -266,49 +189,14 @@ class Rotation(tf.keras.layers.Layer):
     def __init__(self, name = None):
         super().__init__(name=name)
         
-        self.theta = tf.Variable(0, dtype=tf.float32, trainable=False, name='rotation')
+        self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
         
     @tf.function
     def call(self, x_input):
-        x1 = x_input[:,0]*tf.math.cos(self.theta) - x_input[:,1]*tf.math.sin(self.theta)
-        x2 = x_input[:,0]*tf.math.sin(self.theta) + x_input[:,1]*tf.math.cos(self.theta)
+        cos = tf.cos(self.theta * 0.0175/100)
+        sin = tf.sin(self.theta * 0.0175/100)
+        
+        x1 = x_input[:,0]*cos - x_input[:,1]*sin
+        x2 = x_input[:,0]*sin + x_input[:,1]*cos
         r = tf.stack([x1, x2], axis =1 )
-        return r
-    
-    
-class Shear(tf.keras.layers.Layer):
-    '''
-    Sublayer Shear
-    ----------
-    -Constructs Shear, initial shear = [0,0]
-    '''
-    def __init__(self, name = None):
-        super().__init__(name=name)
-        
-        self.shear = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shear')
-        
-    @tf.function
-    def call(self, x_input):
-        x1 = x_input[:,0] + self.shear[0] * x_input[:,1]
-        x2 = self.shear[1] * x_input[:,0] + x_input[:,1]
-        r = tf.stack([x1, x2], axis = 1 )
-        return r
-    
-
-class Scaling(tf.keras.layers.Layer):
-    '''
-    Sublayer Scaling
-    ----------
-    -Constructs Scaling, initial scaling = [1,1]
-    '''
-    def __init__(self, name = None):
-        super().__init__(name=name)
-        
-        self.scaling = tf.Variable([1,1], dtype=tf.float32, trainable=True, name='Scaling')
-        
-    @tf.function
-    def call(self, x_input):
-        x1 = self.scaling[0] * x_input[:,0]
-        x2 = self.scaling[1] * x_input[:,1]
-        r = tf.stack([x1, x2], axis = 1 )
         return r

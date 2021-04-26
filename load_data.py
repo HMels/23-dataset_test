@@ -4,15 +4,21 @@ import numpy as np
 
 #Dataset.align()
 
-def load_data_GaussianSpots(zoom = 10, pix_size = 100):
+def load_data_GaussianSpots(path, alignment = True, zoom = 10, pix_size = 100):
     '''
     Loads the dataset before localization (zo localizations have gaussian
                                            spots around them)
 
     Parameters
     ----------
+    path : list
+        list containing the paths of ch1 and ch2
+    alignment : bool, optional
+        True if we want to do a FFT cross-correlation alignment beforehand
     zoom : int, optional
         The wanted precission of the system. The default is 10.
+    pix_size : float, optional
+        size of the pixels in nm
 
     Returns
     -------
@@ -21,11 +27,12 @@ def load_data_GaussianSpots(zoom = 10, pix_size = 100):
 
     '''
     
-    ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
-    ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
+    ch1 = Dataset.load(path[0])
+    ch2 = Dataset.load(path[1])
     
-    print('Alignning both datasets')
-    Dataset.align(ch1, ch2)
+    if alignment:
+        print('Alignning both datasets')
+        Dataset.align(ch1, ch2)
 
     ch1_data = ch1.renderGaussianSpots(zoom = zoom)
     ch2_data = ch2.renderGaussianSpots(zoom = zoom)
@@ -37,9 +44,18 @@ def load_data_GaussianSpots(zoom = 10, pix_size = 100):
     return ch1_data*pix_size, ch2_data*pix_size
 
 
-def load_data_localizations(pix_size = 100):
+def load_data_localizations(path, alignment = True, pix_size = 100):
     '''
     Loads the dataset localizations
+    
+    Parameters
+    ----------
+    path : list
+        list containing the paths of ch1 and ch2
+    alignment : bool, optional
+        True if we want to do a FFT cross-correlation alignment beforehand
+    pix_size : float, optional
+        size of the pixels in nm. The default is 100
 
     Returns
     -------
@@ -47,12 +63,12 @@ def load_data_localizations(pix_size = 100):
         The [x1, x2] locations of the localizations of Channel 1 and 2.
 
     '''
-
-    ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
-    ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
+    ch1 = Dataset.load(path[0])
+    ch2 = Dataset.load(path[1])
     
-    print('Alignning both datasets')
-    Dataset.align(ch1, ch2)
+    if alignment:
+        print('Alignning both datasets')
+        Dataset.align(ch1, ch2)
     
     # Getting the data in the right format 
     # e.g. x1 being the longest row 
@@ -64,14 +80,20 @@ def load_data_localizations(pix_size = 100):
     return ch1_data*pix_size, ch2_data*pix_size
 
 
-def load_data_subset(subset = 0.1, pix_size = 100):
+def load_data_subset(path, subset = 0.2, alignment = True, pix_size = 100):
     '''
     Loads a subset of the dataset localizations
     
     Parameters
     ----------
+    path : list
+        list containing the paths of ch1 and ch2
     subset : float, optional
-        The size of the subset relative to the total set. The default is 0.1.
+        The size of the subset relative to the total set. The default is 0.2.
+    alignment : bool, optional
+        True if we want to do a FFT cross-correlation alignment beforehand
+    pix_size : float, optional
+        size of the pixels in nm. The default is 100
 
     Returns
     -------
@@ -79,12 +101,13 @@ def load_data_subset(subset = 0.1, pix_size = 100):
         The [x1, x2] locations of the localizations of Channel 1 and 2.
 
     '''
-
-    ch1 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5')
-    ch2 = Dataset.load('C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5')
+    ch1 = Dataset.load(path[0])
+    ch2 = Dataset.load(path[1])
     
-    print('Alignning both datasets')
-    Dataset.align(ch1, ch2)
+    if alignment:
+        print('Alignning both datasets')
+        Dataset.align(ch1, ch2)
+    
     # Getting the data in the right format 
     # e.g. x1 being the longest row 
     ch1_data = ch1.pos

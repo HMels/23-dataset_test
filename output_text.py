@@ -50,8 +50,7 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
 
 
 #%%
-def generate_output(localizations_A, localizations_B, model,
-                    Map_opt='Parameterized_simple', shift=np.array([0,0]), 
+def generate_output(locs_A, locs_B, model, shift=np.array([0,0]), 
                     angle=0, shear=np.array([0,0]), scaling=np.array([1,1]),
                     print_output = True
                     ):
@@ -60,12 +59,10 @@ def generate_output(localizations_A, localizations_B, model,
 
     Parameters
     ----------
-    localizations_A ,localizations_B : Nx2 float np.array
+    locs_A ,locs_B : Nx2 float np.array
         array containing the localizations in channel A and B.
     model : tf.keras.layer.Layer
         The model used for optimizing a mapping.
-    Map_opt : str , optional
-        Which mapping is used. The default is 'Parameterized_simple'.
     shift : 2 float array, optional
         shift of image in nm. The default is np.array([0,0]).
     angle : float, optional
@@ -86,67 +83,15 @@ def generate_output(localizations_A, localizations_B, model,
 
     '''
     
-    ch1 = tf.Variable( localizations_A, dtype = tf.float32)
-    ch2 = tf.Variable( localizations_B, dtype = tf.float32)
-            
-    ch2_mapped = tf.Variable(
-        dataset_manipulation.complex_translation(localizations_B, 
-                                                 -1 * shift, -1 * angle, 
-                                                 -1 * shear, 1 / scaling) , 
-        dtype = tf.float32)
-    
-    
-    if Map_opt == 'Parameterized_simple':
-        ch2_mapped_model = tf.Variable( dataset_manipulation.simple_translation( 
-            localizations_B, model.shift.d.numpy() , model.rotation.theta.numpy() )
-            , dtype = tf.float32)
-       
-        if print_output:
-            print_result_parameterized_simple(model, shift, angle, ch1, 
-                                              ch2_mapped_model, ch2_mapped)
-        
-    if Map_opt == 'Parameterized_complex':
-        ch2_mapped_model = tf.Variable( dataset_manipulation.complex_translation(
-            localizations_B, model.shift.d, model.rotation.theta, model.shear.shear,
-            model.scaling.scaling) , dtype = tf.float32)
-        if print_output:
-            print_result_parameterized_complex(model, shift, angle, shear, scaling, 
-                                               ch1, ch2_mapped_model, ch2_mapped)
-    
-    if Map_opt == 'Polynomial':
-        ch2_mapped_model = tf.Variable( dataset_manipulation.polynomial_translation(
-            localizations_B, model.polynomial.M1, model.polynomial.M2) )
-        
-    return ch1, ch2, ch2_mapped_model #, ch2_mapped
+    ch1 = tf.Variable( locs_A, dtype = tf.float32)
+    ch2 = tf.Variable( locs_B, dtype = tf.float32)    
 
-#%% output functions 
-def print_result_parameterized_simple(model, shift, angle, ch1, ch2_mapped_model, 
-                                      ch2_mapped, pix_size = 100):
-    print('\n-------------------- RESULT --------------------------')
-    print('+ Shift = ',-1 * model.shift.d.numpy() * pix_size, ' [nm]')
-    print('+ Rotation = ',-1 * model.rotation.theta.numpy()*180/np.pi,' [degrees]')
-    
-    print('\n-------------------- COMPARISSON ---------------------')
-    print('+ Shift = ', shift * pix_size, ' [nm]')
-    print('+ Rotation = ', angle*180/np.pi, ' [degrees]')
-    
-    diff_d = (np.abs(model.shift.d.numpy() + shift) * pix_size)**2
-    error_d = np.sqrt(diff_d[0] + diff_d[1])
-    error_theta = np.abs(model.rotation.theta.numpy() + angle)*180/np.pi
-    
-    print('The error equals ', error_d,' nm and ', error_theta, ' degrees')
-    
-    
-def print_result_parameterized_complex(model, shift, angle, shear, scaling, 
-                                       ch1, ch2_mapped_model, ch2_mapped, pix_size = 100):
-    print('\n-------------------- RESULT --------------------------')
-    print('+ Shift = ',-1 * model.shift.d.numpy() * pix_size, ' [nm]')
-    print('+ Rotation = ',-1 * model.rotation.theta.numpy()*180/np.pi,' [degrees]')
-    print('+ Shear = ', -1 * model.shear.shear.numpy())
-    print('+ Scaling = ', 1 / model.scaling.scaling.numpy())
-    
-    print('\n-------------------- COMPARISSON ---------------------')
-    print('+ Shift = ', shift * pix_size, ' [nm]')
-    print('+ Rotation = ', angle*180/np.pi, ' [degrees]')
-    print('+ Shear = ', shear)
-    print('+ Scaling = ', scaling)
+    ch2_mapped_model = tf.Variable( dataset_manipulation.simple_translation( 
+        locs_B, model.shift.d.numpy() , model.rotation.theta.numpy() )
+        , dtype = tf.float32)
+        
+    #ch2_mapped_model = tf.Variable( dataset_manipulation.polynomial_translation(
+      #  locs_B, model.polynomial.M1, model.polynomial.M2) )
+        
+    return ch1, ch2, ch2_mapped_model
+
