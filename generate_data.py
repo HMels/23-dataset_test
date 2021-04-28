@@ -4,27 +4,18 @@
 import numpy as np
 import numpy.random as rnd
 
-import dataset_manipulation
 import load_data
 
 #%% functions
-def run_channel_generation(path, shift = np.array([0,0]), angle = 0, 
-                                        shear = np.array([0,0]), scaling = np.array([1,1]), 
-                                        error = 10, Noise = 0.1, realdata = True, 
-                                        subset = 1):
+def run_channel_generation(path, deform, error = 10, Noise = 0.1,
+                           realdata = True, subset = 1):
     '''
     Parameters
     ----------
     path : str list 
         list containing the paths for 
-    angle : float, optional
-        Angle of rotation between channel A and B in radians. The default is 0.
-    shift : float, optional
-        Shift between channel A and B in pix. The default is np.array([0,0]).
-    shear : float, optional
-        Shear between channel A and B. The default is np.array([0,0])
-    scaling : float, optional
-        Scaling between channel A and B. The default is np.array([1,1])
+    deform : Deform() class
+        class containing the deformation parameters and functions
     error : float, optional
         Localization error in nm. The default is 10.
     Noise : float, optional
@@ -53,8 +44,7 @@ def run_channel_generation(path, shift = np.array([0,0]), angle = 0,
         locs_B = locs_A.copy()
         locs_A = localization_error( locs_A, error )
         locs_B = localization_error( locs_B, error )
-        
-        
+    
     img = np.empty([2,2], dtype = float)
     img[0,0] = np.min(locs_A[:,0])
     img[0,1] = np.max(locs_A[:,0])
@@ -67,11 +57,8 @@ def run_channel_generation(path, shift = np.array([0,0]), angle = 0,
     locs_A[:,1] = locs_A[:,1] - mid[1]
     locs_B[:,1] = locs_B[:,1] - mid[1]
     
-    if not realdata:      # Induce deformation in Channel B
-        locs_B = dataset_manipulation.complex_translation(locs_B, 
-                                                                   shift, angle, 
-                                                                   shear, scaling)
-        # Generate Noise
+    if not realdata:      # Induce deformation and noise in Channel B
+        locs_B = deform.deform(locs_B)
         locs_A = generate_noise(locs_A, img, Noise)
         locs_B = generate_noise(locs_B, img, Noise)
     
@@ -120,7 +107,7 @@ def generate_noise(locs_, img, Noise):
     '''
     N_Noise = int(Noise * locs_.shape[0])
     
-    img_size = img[1,:] - img[0,:] 
+    img_size = img[:,1] - img[:,0] 
 
     Noise_loc = np.array([
         img_size[0] * ( rnd.rand( N_Noise ) -0.5) ,

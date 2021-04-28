@@ -22,6 +22,7 @@ def run_optimization(locs_A, locs_B, model, Batch_on=False, batch_size=None,
         ch2 = tf.Variable( locs_B, dtype = tf.float32)
         model_apply_grads = get_apply_grad_fn_nobatch()
     
+    print('\nLoading, this might take a while...')
     opt = tf.optimizers.Adam(learning_rate)
     loss = model_apply_grads(ch1, ch2, model, opt, epochs)
     
@@ -56,8 +57,6 @@ def get_apply_grad_fn_nobatch():
             the relative entropy.
 
         '''
-        
-        print('\nLoading, this might take a while...')
         for i in range(epochs):
             with tf.GradientTape() as tape:
                 y = model(ch1, ch2)
@@ -95,11 +94,6 @@ def get_apply_grad_fn_batch():
             the relative entropy.
 
         '''
-        
-        print('\nLoading, this might take a while...')
-        
-        epochs = 200
-        
         for i in range(epochs):
             for j in range(len(ch1)):
                 with tf.GradientTape() as tape:

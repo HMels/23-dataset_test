@@ -11,12 +11,11 @@ Channel alignment
 
 This file consist of multiple Modules.
 Main.py
+|- setup_image.py               File containing the Deform class and the Image class
 |- generate_data.py             File containing everything to setup the program
 |  |
 |  |- load_data.py              File used to load the example dataset given
 |
-|- dataset_manipulation.py      File containing the functions used to deform
-|                                   /manipulate the dataset
 |- run_optimization.py          File containing the training loops
 |- Minimum_Entropy.py           File containing the optimization classes 
 |- output_text.py               File containing the code for the output text
@@ -39,6 +38,7 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 # Modules
+import setup_image
 import generate_data
 import run_optimization
 import Minimum_Entropy
@@ -65,14 +65,15 @@ error = 10                                          # localization error in nm
 Noise = 0.1                                         # percentage of noise
 
 ## Deformation of channel B
-angle = .5*100                                      # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
 shift = np.array([ 40  , 30 ])                      # shift in nm
+rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
 shear = np.array([0, 0])                            # shear
 scaling = np.array([1, 1]) + np.array([0,0])        # scaling 
+deform = setup_image.Deform(shift, rotation, shear, scaling)
 
 ## Generate Data
 locs_A, locs_B = generate_data.run_channel_generation(
-    path, shift, angle, shear, scaling, error, Noise, realdata, subset
+    path, deform, error, Noise, realdata, subset
     ) 
 
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
@@ -81,11 +82,13 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Minimum Entropy
 ## Optimization Parameters
 # decide what mapping to optimize
-model = Minimum_Entropy.Parameterized_module(name='Parameterized')
-#model = Minimum_Entropy.Polynomial_module(name='Polynomial')
+#model = Minimum_Entropy.ParamMod(name='Parameterized')
+model = Minimum_Entropy.Poly2Mod(name='Polynomial')
+#model = Minimum_Entropy.Poly3Mod(name='Polynomial')
+
 max_deform = 150                                    # maximum amount of deform in nm
-learning_rate = 1                                        # learning rate 
-epochs = 150                                        # amount of iterations of optimization
+learning_rate = 1e-7                                        # learning rate 
+epochs = 300                                        # amount of iterations of optimization
 
 # Batches used in training 
 Batch_on = False
@@ -105,8 +108,7 @@ model, loss = run_optimization.run_optimization(
 
 #%% output
 ch1, _, ch2_mapped_model = output_text.generate_output(
-    locs_A, locs_B, model, shift,
-    angle, shear, scaling)
+    locs_A, locs_B, model, deform)
         
 
 #%% generating image
@@ -119,7 +121,7 @@ plt.close('all')
 channel1, channel2, channel2m, axis = generate_image.generate_channel(
     ch1, ch2, ch2_mapped_model, precision, max_deform)
 
-
+#%%
 ## Plotting Image
 ref_channel1 = generate_image.reference_clust(ch1, precision * 20, 
                                               axis, threshold)
@@ -127,5 +129,6 @@ ref_channel1 = generate_image.reference_clust(ch1, precision * 20,
 generate_image.plot_channel(channel1, channel2, channel2m, axis,
                             ref_channel1)
 
+print('\n\n')
 print(loss)
 print(model.trainable_variables)

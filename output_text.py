@@ -8,7 +8,7 @@ import numpy as np
 import tensorflow as tf
 import time
 
-import dataset_manipulation
+import setup_image
 
 #%% error handling of batches
 def Info_batch(N, num_batches, batch_size, Batch_on=True):
@@ -50,10 +50,7 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
 
 
 #%%
-def generate_output(locs_A, locs_B, model, shift=np.array([0,0]), 
-                    angle=0, shear=np.array([0,0]), scaling=np.array([1,1]),
-                    print_output = True
-                    ):
+def generate_output(locs_A, locs_B, model, deform, print_output = True ):
     '''
     generates output channel and text output
 
@@ -63,14 +60,8 @@ def generate_output(locs_A, locs_B, model, shift=np.array([0,0]),
         array containing the localizations in channel A and B.
     model : tf.keras.layer.Layer
         The model used for optimizing a mapping.
-    shift : 2 float array, optional
-        shift of image in nm. The default is np.array([0,0]).
-    angle : float, optional
-        angle of rotation in radians. The default is 0.
-    shear : 2 float array, optional
-        amount of shear. The default is np.array([0,0]).
-    scaling : 2 float array, optional
-        amount of scaling. The default is np.array([1,1]).
+    deform : Deform class
+        class containing all deformations parameters and functions
     print_output : bool
         True if you want to print the results vs comparisson
 
@@ -85,13 +76,29 @@ def generate_output(locs_A, locs_B, model, shift=np.array([0,0]),
     
     ch1 = tf.Variable( locs_A, dtype = tf.float32)
     ch2 = tf.Variable( locs_B, dtype = tf.float32)    
-
-    ch2_mapped_model = tf.Variable( dataset_manipulation.simple_translation( 
-        locs_B, model.shift.d.numpy() , model.rotation.theta.numpy() )
-        , dtype = tf.float32)
-        
-    #ch2_mapped_model = tf.Variable( dataset_manipulation.polynomial_translation(
-      #  locs_B, model.polynomial.M1, model.polynomial.M2) )
+    '''
+    deform_mod = setup_image.Deform(model.d.numpy(),
+                                    model.theta.numpy() / 100
+                                    , np.array([0,0]), np.array([1,1]))
+    
+    ch2_mapped_model = tf.Variable( deform_mod.deform(ch2), dtype = tf.float32)
+    '''    
+    ch2_mapped_model = tf.Variable( polynomial_translation(
+        locs_B, model.M1, model.M2) )
         
     return ch1, ch2, ch2_mapped_model
 
+
+#%% Polynomial translation
+def polynomial_translation(locs, M1, M2):
+    m = M1.shape[0]
+    y = np.zeros(locs.shape)[None]
+    
+    for i in range(m):
+        for j in range(m):
+            y1=  np.array([
+                M1[i,j] * (locs[:,0]**i) * ( locs[:,1]**j),
+                M2[i,j] * (locs[:,0]**i) * ( locs[:,1]**j)
+                ]).transpose()[None]
+            y = np.concatenate([y, y1 ], axis = 0) 
+    return tf.reduce_sum(y, axis = 0)

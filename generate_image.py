@@ -31,7 +31,7 @@ def plot_channel(channel1, channel2, channel3, axis, ref_channel1):
     plt.title('channel 2 mapped')
 
 
-def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 1.5):
+def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 150):
     '''
     Generates the image of all three figures
 
@@ -42,7 +42,7 @@ def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 1.5):
     precision : float, optional
         The amount of precision in nm. The default is 10
     max_deform : float, optional
-        The maximum amount of deformation allowed in pixels. The default is 1.5.
+        The maximum amount of deformation allowed in nm. The default is 150.
 
     Returns
     -------

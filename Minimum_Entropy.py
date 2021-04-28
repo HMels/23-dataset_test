@@ -24,7 +24,7 @@ import tensorflow as tf
 
 #%% functions
 
-@tf.function
+@tf.autograph.experimental.do_not_convert
 def Rel_entropy(ch1,ch2):
     '''
     Parameters
@@ -39,9 +39,7 @@ def Rel_entropy(ch1,ch2):
 
     '''    
     N = ch1.shape[0]    
-    expDistances = tf.reduce_sum(
-        tf.math.exp( -1 * KL_divergence( ch1, ch2 ) )  / N
-         , 0 )
+    expDistances =  tf.math.exp( -1 * KL_divergence( ch1, ch2 ) )  / N
     
     # delete all zero values
     boolean_mask = tf.cast(expDistances, dtype=tf.bool)              
@@ -52,8 +50,8 @@ def Rel_entropy(ch1,ch2):
             ))
 
 
-@tf.function
-def KL_divergence(ch1, ch2, k = 32):
+@tf.autograph.experimental.do_not_convert
+def KL_divergence(ch1, ch2):
     '''
     Parameters
     ----------
@@ -61,8 +59,6 @@ def KL_divergence(ch1, ch2, k = 32):
         The array containing the [x1, x2] locations of the localizations i and j.
     sigma_i, sigma_j : 2D float32 array
         The array containing the [x1, x2] std of the localizations i and j.
-    k : int
-        The number of kNN the KL-Divergence should be calculated for
 
     Returns
     -------
@@ -70,18 +66,16 @@ def KL_divergence(ch1, ch2, k = 32):
         The Kullback Leibler divergence as described by Cnossen 2021.
 
     '''
-    N_locs = ch1.shape[0]
     typical_CRLB = .15*100/10   # CRLB is typically 0.15 pix in size
-    sigma2_j = typical_CRLB * tf.ones([k,N_locs,2], dtype = float)
 
     dist_squared = tf.square(ch1 - ch2)
       
-    return 0.5*tf.reduce_sum( dist_squared / sigma2_j**2 , 2)
+    return 0.5*tf.reduce_sum( dist_squared / typical_CRLB**2 , 1)
 
 
 #%% Classes
 
-class Polynomial_module(tf.keras.Model):
+class Poly3Mod(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
     ----------
@@ -89,52 +83,46 @@ class Polynomial_module(tf.keras.Model):
     - gives it a certain polynomial deformation via the Polynomial Class
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name=None):
-        super().__init__(name=name)
-        
-        self.polynomial = Polynomial()
+    def __init__(self, name = None): 
+        super().__init__(name=name) 
+        self.M1 = tf.Variable([[0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M1'
+                              )
+        self.M2 = tf.Variable([[0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M2'
+                              )
     
-    @tf.function # to indicate code should run as graph
+    @tf.function 
     def call(self, ch1, ch2):
         ch2_mapped = self.polynomial(ch2)
         return Rel_entropy(ch1, ch2_mapped)
     
-    
-class Parameterized_module(tf.keras.Model):
+    @tf.autograph.experimental.do_not_convert
+    def polynomial(self,x_input):
+        y = tf.zeros(x_input.shape)[None]
+        for i in range(3):
+            for j in range(3):
+                y = tf.concat([y, 
+                               [tf.stack([ 
+                                   self.M1[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j ),
+                                   self.M2[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j )
+                                   ], axis = 1)]
+                               ], axis = 0)
+        return tf.reduce_sum(y, axis = 0)
+
+
+class Poly2Mod(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
     ----------
     - it takes the x_input, the [x1,x2] locations of all localizations
-    - gives it a shift and rotation deformation
+    - gives it a certain polynomial deformation via the Polynomial Class
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name=None):
-        super().__init__(name=name)
-        
-        self.shift = Shift()
-        self.rotation = Rotation()
-    
-    @tf.function # to indicate code should run as graph
-    def call(self, ch1, ch2):
-        ch2_mapped = self.rotation(
-            self.shift( ch2 )
-            )
-        return Rel_entropy(ch1, ch2_mapped)
-
-
-#%% Polynomial Mapping Class
-class Polynomial(tf.keras.layers.Layer):
-    '''
-    Sublayer Polynomial
-    ----------
-    __init__ : constructs the class together with the initial parameters matrices 
-            M1 and M2, in which index [i,j] stands for x1**i * x2**j 
-            and start at x1 = x1 and x2 = x2
-    ----------
-    call : takes input x_input, a Nx2 float32 array containing all localizations
-            and transforms them polynomialy using M1 and M2
-    '''
-     
     def __init__(self, name = None): 
         super().__init__(name=name) 
         self.M1 = tf.Variable([[0.0, 0.0],
@@ -145,54 +133,55 @@ class Polynomial(tf.keras.layers.Layer):
                                [0.0, 0.0]],
                               dtype=tf.float32, trainable=True, name = 'M2'
                               )
-        
-     
+    
     @tf.function
-    def call(self, x_input):
+    def call(self, ch1, ch2):
+        ch2_mapped = self.polynomial(ch2)
+        return Rel_entropy(ch1, ch2_mapped)
+    
+    @tf.autograph.experimental.do_not_convert
+    def polynomial(self, x_input):
         y = tf.zeros(x_input.shape)[None]
-        m = 2
-        for i in range(m):
-            for j in range(m):
+        for i in range(2):
+            for j in range(2):
                 y = tf.concat([y, 
-                                [tf.stack([ 
+                               [tf.stack([ 
                                    self.M1[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j ),
                                    self.M2[i,j] * ( x_input[:,0]**i ) * ( x_input[:,1]**j )
                                    ], axis = 1)]
                                ], axis = 0)
-        
         return tf.reduce_sum(y, axis = 0)
+    
 
-
-#%% Parametrized Mapping Class
-class Shift(tf.keras.layers.Layer):
+class ParamMod(tf.keras.Model):
     '''
-    Sublayer Shift
+    Main Layer for calculating the relative entropy of a certain deformation
     ----------
-    -Constructs shift, initial shift = [0,0]
+    - it takes the x_input, the [x1,x2] locations of all localizations
+    - gives it a shift and rotation deformation
+    - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name = None):
+    def __init__(self, name=None):
         super().__init__(name=name)
         
         self.d = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shift')
-        
+        self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
+
+
     @tf.function
-    def call(self, x_input):
+    def call(self, ch1, ch2):
+        ch2_mapped = self.rotation(
+            self.shift( ch2 )
+            )
+        return Rel_entropy(ch1, ch2_mapped)
+    
+    @tf.autograph.experimental.do_not_convert
+    def shift(self, x_input):
         return x_input + self.d[None]
     
-        
-class Rotation(tf.keras.layers.Layer):
-    '''
-    Sublayer Rotation
-    ----------
-    -Constructs Rotation, initial rotation = 0 degrees
-    '''
-    def __init__(self, name = None):
-        super().__init__(name=name)
-        
-        self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
-        
-    @tf.function
-    def call(self, x_input):
+    
+    @tf.autograph.experimental.do_not_convert
+    def rotation(self, x_input):
         cos = tf.cos(self.theta * 0.0175/100)
         sin = tf.sin(self.theta * 0.0175/100)
         
