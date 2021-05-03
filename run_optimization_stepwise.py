@@ -29,10 +29,13 @@ def get_apply_grad_fn_dynamic():
                   MinEntropy.RotationMod('rotation'),
                   MinEntropy.Poly3Mod('polynomial')]
         learning_rates = [1.0, 1e-2, 5e-26]
+        optimizers = [tf.optimizers.Adagrad,
+                      tf.optimizers.Adagrad,
+                      tf.optimizers.Adam]
         
         mods = []
         for i in range(len(models)):
-            mods.append( Models(model=models[i], learning_rate = learning_rates[i] ))
+            mods.append( Models(model=models[i], learning_rate = learning_rates[i], opt=optimizers[i] ))
             mods[i].var = mods[i].model.trainable_variables
            
         n = len(models)
@@ -44,7 +47,7 @@ def get_apply_grad_fn_dynamic():
             mods[j].Training_loop(ch1, ch2)                         # the training loop
             # is ch2 updated????
             i+=1     
-            if i%50*n==0:
+            if i%150*n==0:
                 print('i = ',i//n)                         
         print('completed in',i//n,' iterations')
         
@@ -53,6 +56,7 @@ def get_apply_grad_fn_dynamic():
             print('Model: ', mods[i].model)
             #print('+ entropy',mods[i].entropy)
             print('+ variables',mods[i].var)
+            print('\n')
             ch2 = models[i].transform(ch2)
             
         return mods[-1], mods[-1].var, ch2
@@ -68,7 +72,7 @@ class Models():
         self.model = model if model is not None else {}
         self.opt = opt if opt is not None else tf.optimizers.Adagrad    # uninitialized optimizer
         self.learning_rate = learning_rate if learning_rate is not None else 1e-3
-        self.var = var if var is not None else []
+        self.var = model.trainable_weights if model is not None else {}
         self.entropy = entropy if entropy is not None else {}
         self.grads = grads if grads is not None else {}
         self.opt_init = self.opt(self.learning_rate)                    # initialized optimizer
@@ -76,7 +80,7 @@ class Models():
         self.endloop = False
         self.rejections = 0
         self.step_along_gradient = self.load_step_along_gradient(model)
-        self.var_new = model.trainable_weights
+        self.var_new = model.trainable_weights if model is not None else {}
         
     def Training_loop(self, ch1, ch2):        
         if not self.Reject:

@@ -46,7 +46,7 @@ def Rel_entropy(ch1,ch2):#,neighbour_idx):
         i need to try to make a convert to Neighbour_format function that takes 
         neighbours and places everything in a 700x365x2 format of ch1 and ch2.
         
-        The program will than 
+        The program will then 
         -reduce_sum(axis=2) in DKL to add the dimensions
         -reduce_sum(axis=1) in Entropy to add the exponents
         -reduce_sum(axis=0) in Entropy to add the log
@@ -68,7 +68,7 @@ def Rel_entropy(ch1,ch2):#,neighbour_idx):
     '''
     return -1*tf.reduce_sum(
         tf.math.exp(
-            -1*KL_divergence(ch1, ch2) / N )
+            -1*KL_divergence(ch1, ch2) / N ) / N
         )#-1*tf.reduce_sum( D_KL )
 
 
@@ -101,7 +101,7 @@ class Poly3Mod(tf.keras.Model):
     - gives it a certain polynomial deformation via the Polynomial Class
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name = None): 
+    def __init__(self, name = 'polynomial'): 
         super().__init__(name=name) 
         self.M1 = tf.Variable([[0.0, 0.0, 0.0],
                                [1.0, 0.0, 0.0],
@@ -155,7 +155,7 @@ class ShiftMod(tf.keras.Model):
     - gives it a shift and rotation deformation
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name=None):
+    def __init__(self, name='shift'):
         super().__init__(name=name)
         
         self.d = tf.Variable([0,0], dtype=tf.float32, trainable=True, name='shift')
@@ -179,7 +179,7 @@ class RotationMod(tf.keras.Model):
     - gives it a shift and rotation deformation
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, name=None):
+    def __init__(self, name='rotation'):
         super().__init__(name=name)
         
         self.theta = tf.Variable(0, dtype=tf.float32, trainable=True, name='rotation')
@@ -191,8 +191,8 @@ class RotationMod(tf.keras.Model):
     
     @tf.autograph.experimental.do_not_convert
     def transform(self, x_input):
-        cos = tf.cos(self.theta * 0.0175/100)
-        sin = tf.sin(self.theta * 0.0175/100)
+        cos = tf.cos(self.theta * 0.0175)
+        sin = tf.sin(self.theta * 0.0175)
         
         x1 = x_input[:,0]*cos - x_input[:,1]*sin
         x2 = x_input[:,0]*sin + x_input[:,1]*cos

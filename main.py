@@ -68,9 +68,9 @@ Noise = 0.1                                         # percentage of noise
 
 ## Deformation of channel B
 shift = np.array([ 14  , 17 ])                      # shift in nm
-rotation = .2                                      # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-shear = np.array([0, 0])                            # shear
-scaling = np.array([1, 1]) + np.array([0,0])        # scaling 
+rotation = .2                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+shear = np.array([0.0, 0.0])                      # shear
+scaling = np.array([1.0,1.0 ])                    # scaling 
 deform = setup_image.Deform(shift, rotation, shear, scaling)
 
 ## Generate Data
