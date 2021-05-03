@@ -34,12 +34,12 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
     if Batch_on:
         perc = np.prod(num_batches)*batch_size / N * 100
         if perc < 100:
-            print('I: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
+            print('\nI: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
                   batch_size,' points per batch and ',N, ' points total)',
                   ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy.\n')
             input("Press Enter to continue...")
         else: 
-            print('I: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
+            print('\nI: in the current setup (',num_batches[0],'x',num_batches[1],'batches, ',
                   batch_size,' points per batch and ',N, ' points total)',
                   ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy. \nThe setup seems to be OK and the amount of Batches is sufficient.\n')
             time.sleep(2)
@@ -50,7 +50,7 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
 
 
 #%%
-def generate_output(locs_A, locs_B, model, deform, print_output = True ):
+def generate_output(locs_A, locs_B, model, variables, deform, print_output = True ):
     '''
     generates output channel and text output
 
@@ -77,17 +77,43 @@ def generate_output(locs_A, locs_B, model, deform, print_output = True ):
     ch1 = tf.Variable( locs_A, dtype = tf.float32)
     ch2 = tf.Variable( locs_B, dtype = tf.float32)    
     '''
-    deform_mod = setup_image.Deform(model.d.numpy(),
-                                    model.theta.numpy() / 100
+    deform_mod = setup_image.Deform(variables[0],
+                                    variables[1] / 100
                                     , np.array([0,0]), np.array([1,1]))
     
     ch2_mapped_model = tf.Variable( deform_mod.deform(ch2), dtype = tf.float32)
     '''    
     ch2_mapped_model = tf.Variable( polynomial_translation(
-        locs_B, model.M1, model.M2) )
-        
+        locs_B, variables[0], variables[1]) )
+    #'''  
     return ch1, ch2, ch2_mapped_model
 
+
+#%% overlap
+def overlap(ch1, ch2):
+    '''
+    Calculates the overlap of the channels
+
+    Parameters
+    ----------
+    ch1 , ch2 : NxM np.array
+        Array containing the information of the image.
+
+    Returns
+    -------
+    float
+        The overlap metric.
+
+    '''
+    overlap = ch1*ch2
+    return np.sum(np.sum(overlap))
+    
+
+def avg_shift(ch1, ch2):
+    
+    dist = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
+    return np.average(dist)
+    
 
 #%% Polynomial translation
 def polynomial_translation(locs, M1, M2):
@@ -101,4 +127,4 @@ def polynomial_translation(locs, M1, M2):
                 M2[i,j] * (locs[:,0]**i) * ( locs[:,1]**j)
                 ]).transpose()[None]
             y = np.concatenate([y, y1 ], axis = 0) 
-    return tf.reduce_sum(y, axis = 0)
+    return np.sum(y, axis = 0)

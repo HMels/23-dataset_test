@@ -65,7 +65,7 @@ def run_channel_generation(path, deform, error = 10, Noise = 0.1,
     return locs_A, locs_B
 
 
-def localization_error(locs_, error = 10):
+def localization_error(locs, error = 10):
     '''
     Generates a Gaussian localization error over the localizations 
 
@@ -82,10 +82,10 @@ def localization_error(locs_, error = 10):
         The actual locations of the localizations.
 
     '''
-    N = len(locs_[:,0])
-    locs_[:,0] += rnd.normal(0, error, N)
-    locs_[:,1] += rnd.normal(0, error, N)
-    return locs_
+    N = len(locs[:,0])
+    locs[:,0] += rnd.normal(0, error, N)
+    locs[:,1] += rnd.normal(0, error, N)
+    return locs
         
 
 def generate_noise(locs_, img, Noise):

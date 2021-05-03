@@ -8,9 +8,9 @@ import tensorflow as tf
 import numpy as np
 
 #%% initialize function
-def run_optimization(locs_A, locs_B, model, Batch_on=False, batch_size=None,
+def run_optimization(locs_A, locs_B,# neighbour_idx,
+                     model, Batch_on=False, batch_size=None,
                          num_batches=None, learning_rate=.001, epochs = 50):
-    
     
     # decide if dataset will be split in batches
     if Batch_on:
@@ -22,9 +22,10 @@ def run_optimization(locs_A, locs_B, model, Batch_on=False, batch_size=None,
         ch2 = tf.Variable( locs_B, dtype = tf.float32)
         model_apply_grads = get_apply_grad_fn_nobatch()
     
-    print('\nLoading, this might take a while...')
+    print('Optimizing Parameters, this might take a while...')
     opt = tf.optimizers.Adam(learning_rate)
-    loss = model_apply_grads(ch1, ch2, model, opt, epochs)
+    loss = model_apply_grads(ch1, ch2, #neighbour_idx, 
+                             model, opt, epochs)
     
     return model, loss
     
@@ -33,15 +34,18 @@ def run_optimization(locs_A, locs_B, model, Batch_on=False, batch_size=None,
 #%% optimization function
 def get_apply_grad_fn_nobatch():
     @tf.function
-    def apply_grad(ch1, ch2, model, opt, epochs):
+    def apply_grad(ch1, ch2, #neighbour_idx, 
+                   model, opt, epochs):
         '''
         The function that minimizes a certain model using TensorFlow GradientTape()
         This function does not use batches
         
         Parameters
         ----------
-        x_input : Nx2 float32 array
+        ch1, ch2 : Nx2 float32 array
             Contains the [x1, x2] locs of all localizations.
+        neighbour_idx : list
+            List containing per indice of ch1 the neighbours in ch2.
         model : TensorFlow Keras Model
             The model that needs to be optimized. In our case, This model will be
             PolMod() which contains the sublayer Polynomial().
@@ -59,7 +63,7 @@ def get_apply_grad_fn_nobatch():
         '''
         for i in range(epochs):
             with tf.GradientTape() as tape:
-                y = model(ch1, ch2)
+                y = model(ch1, ch2)#, neighbour_idx)
                         
             gradients = tape.gradient(y, model.trainable_variables)
             

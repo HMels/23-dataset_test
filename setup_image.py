@@ -8,6 +8,7 @@ first I have to make img consistent
 """
 import numpy as np
 
+
 class Deform():
     '''
     This class contains all functions and variables used to give the image a deformation
@@ -31,33 +32,33 @@ class Deform():
         - scaling_idef()
     '''
     
-    def __init__(self, shift, rotation, shear, scaling):
-        self.shift = shift
-        self.rotation = rotation * 100 # The adjustments in rotation needs to be fine
-        self.shear = shear
-        self.scaling = scaling
+    def __init__(self, shift=None, rotation=None, shear=None, scaling=None):
+        self.shift = shift if shift is not None else {}
+        self.rotation = rotation if rotation is not None else {}
+        self.shear = shear if shear is not None else {}
+        self.scaling = scaling if scaling is not None else {}
         
         
     def deform(self, locs):
-        if self.shift[0] != 0 and self.shift[1] != 0:
+        if (self.shift[0] != 0 and self.shift[1] != 0) and self.shift is not None:
             locs = self.shift_def(locs)
-        if self.rotation != 0:
+        if (self.rotation != 0) and self.rotation is not None:
             locs = self.rotation_def(locs)
-        if self.shear[0] != 0 and self.shear[1] != 0:
+        if (self.shear[0] != 0 and self.shear[1] != 0) and self.shear is not None:
             locs = self.shear_def(locs)
-        if self.scaling[0] != 1 and self.scaling[1] != 1:
+        if (self.scaling[0] != 1 and self.scaling[1] != 1) and self.scaling is not None:
             locs = self.scaling_def(locs)
         return locs
     
     
     def ideform(self, locs):
-        if self.scaling[0] != 1 and self.scaling[1] != 1:
+        if (self.scaling[0] != 1 and self.scaling[1] != 1) and self.scaling is not None:
             locs = self.scaling_idef(locs)
-        if self.shear[0] != 0 and self.shear[1] != 0:
+        if (self.shear[0] != 0 and self.shear[1] != 0) and self.shear is not None:
             locs = self.shear_idef(locs)
-        if self.rotation != 0:
+        if (self.rotation != 0) and self.rotation is not None:
             locs = self.rotation_idef(locs)
-        if self.shift[0] != 0 and self.shift[1] != 0:
+        if (self.shift[0] != 0 and self.shift[1] != 0) and self.shift is not None:
             locs = self.shift_idef(locs)
         return locs
         
@@ -71,8 +72,8 @@ class Deform():
     
     
     def rotation_def(self, locs):
-        cos = np.cos(self.rotation / 100 * 0.0175) 
-        sin = np.sin(self.rotation / 100 * 0.0175)
+        cos = np.cos(self.rotation * 0.0175) 
+        sin = np.sin(self.rotation * 0.0175)
        
         locs = np.array([
              (cos * locs[:,0] - sin * locs[:,1]) ,
@@ -82,8 +83,8 @@ class Deform():
     
     
     def rotation_idef(self, locs):
-        cos = np.cos(self.rotation / 100 * 0.0175) 
-        sin = np.sin(self.rotation / 100 * 0.0175)
+        cos = np.cos(self.rotation * 0.0175) 
+        sin = np.sin(self.rotation * 0.0175)
        
         locs = np.array([
              (cos * locs[:,0] + sin * locs[:,1]) ,

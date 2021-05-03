@@ -10,7 +10,12 @@ import time
 import matplotlib.pyplot as plt
 
 
-def plot_channel(channel1, channel2, channel3, axis, ref_channel1):
+def plot_channel(channel1, channel2, channel3, bounds, ref_channel1, precision):
+    print('Plotting...')
+    
+    axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
+    axis = np.reshape(axis, [1,4])[0]
+    
     ref_channel1[:,0] = -1 * ref_channel1[:,0]
     
     # plotting all channels
@@ -53,6 +58,7 @@ def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 150):
         Array containing the axis boundaries for the plots in nm
 
     '''
+    print('Preparing Data for plotting...')
     bounds_check(locs1, locs3, max_deform)
     
 
@@ -72,11 +78,8 @@ def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 150):
     channel1 = generate_matrix(locs1, bounds)
     channel2 = generate_matrix(locs2, bounds)
     channel3 = generate_matrix(locs3, bounds)
-
-    axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
-    axis = np.reshape(axis, [1,4])[0]
     
-    return channel1, channel2, channel3, axis
+    return channel1, channel2, channel3, bounds
 
 
 def generate_matrix(locs , bounds):
@@ -107,7 +110,7 @@ def generate_matrix(locs , bounds):
     return channel
 
 
-def reference_clust(locs, precision, axis, threshold = 50):
+def reference_clust(locs, precision, bounds, threshold = 50):
     '''
     Generates the references, which will be placed on clusters in channel 1
 
@@ -129,10 +132,10 @@ def reference_clust(locs, precision, axis, threshold = 50):
         The reference points in nm.
 
     '''
-    locs = locs / precision
     
-    bounds = np.reshape(axis, [2,2]) / precision
-    bounds = np.array([bounds[1,:],bounds[0,:]]) 
+    print('Generating reference-points for clusters...')
+    
+    locs = locs / precision
     size_img = np.round( (bounds[:,1] - bounds[:,0]) , 0).astype('int')
     
     channel = np.zeros([size_img[0], size_img[1]], dtype = int)
