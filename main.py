@@ -40,10 +40,10 @@ import tensorflow as tf
 
 # Modules
 import setup_image
-#import generate_neighbours
+import generate_neighbours
 import generate_data
-#import run_optimization
-import run_optimization_stepwise as run_optimization
+import run_optimization
+import Minimum_Entropy
 import output_text
 import generate_image
 
@@ -78,19 +78,19 @@ locs_A, locs_B = generate_data.run_channel_generation(
     path, deform, error, Noise, realdata, subset
     ) 
 
-ch2 = tf.Variable( locs_B, dtype = tf.float32)
-'''
 ## Generate Neighbours 
-neighbour_idx = generate_neighbours.find_bright_neighbours(
+neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
     locs_A, locs_B, threshold=None, maxDistance=50)
-'''
+
 
 #%% Minimum Entropy
-model = None
-## Optimization Parameters
-max_deform = 150                                    # maximum amount of deform in nm
-learning_rate = 1#e-26                              # learning rate 
-epochs = 2000                                        # amount of iterations of optimization
+## Optimization models and parameters
+models = [Minimum_Entropy.ShiftMod('shift'), 
+          Minimum_Entropy.RotationMod('rotation')#,
+          #Minimum_Entropy.Poly3Mod('polynomial')
+          ]
+learning_rates = [1.0, 1e-2]#, 5e-26]
+optimizers = [tf.optimizers.Adagrad, tf.optimizers.Adagrad]#, tf.optimizers.Adam]
 
 # Batches used in training 
 Batch_on = False
@@ -102,29 +102,36 @@ output_text.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
                        , num_batches, batch_size, Batch_on)
 
 
+## getting data in right form
+# use tf variables
+ch1 = tf.Variable( locs_A, dtype = tf.float32)
+ch2 = tf.Variable( locs_B, dtype = tf.float32)
+nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
+nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
+
+mods = []
+for i in range(len(models)):
+    mods.append( run_optimization.Models(model=models[i], 
+                                         learning_rate = learning_rates[i], 
+                                         opt=optimizers[i] ))
+    mods[i].var = mods[i].model.trainable_variables
+
+
 ## Training Loop
-model, loss, variables, ch2MAP = run_optimization.run_optimization(
-    locs_A, locs_B,# neighbour_idx, 
-    model, Batch_on,
-    batch_size, num_batches, learning_rate, epochs)
+model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
+mods, ch2_map = model_apply_grads(ch1, ch2, nn1, nn2, mods)
 
-
-#%% output
-ch1, _, ch2_mapped_model = output_text.generate_output(
-    locs_A, locs_B, model, variables, deform)
-        
 
 #%% generating image
 ## output parameters
 precision = 5                                       # precision of image in nm
 threshold = 100                                     # threshold for reference points
+max_deform = 150                                    # maximum amount of deform in nm
 
 ## Channel Generation
 plt.close('all')
-#channel1, channel2, channel2m, bounds = generate_image.generate_channel(
- #   ch1, ch2, ch2_mapped_model, precision, max_deform)
 channel1, channel2, channel2m, bounds = generate_image.generate_channel(
-    ch1, ch2, ch2MAP, precision, max_deform)
+    ch1, ch2, ch2_map, precision, max_deform)
 
 
 ## Generating reference points
@@ -135,28 +142,21 @@ ref_channel1 = generate_image.reference_clust(ch1, precision * 20,
 ch1_ref = generate_data.localization_error(locs_A, error)
 channel1_ref = generate_image.generate_matrix(
     ch1_ref / precision, bounds
-    )                       # generate a reference channel 
+    )
+
 
 #%% Metrics
-
 ## Calculate Channel Overlap
 overlap = output_text.overlap(channel1, channel2)
 overlap_map = output_text.overlap(channel1, channel2m)
 overlap_max = output_text.overlap(channel1, channel1_ref)
 
 N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
+
 ## Calculate Average Shift
 avg_shift = output_text.avg_shift(ch1[:N0,:].numpy(), ch2[:N0,:].numpy())
-#avg_shift_map = output_text.avg_shift(ch1[:N0,:].numpy(), ch2_mapped_model[:N0,:].numpy())
-avg_shift_map = output_text.avg_shift(ch1[:N0,:].numpy(), ch2MAP[:N0,:].numpy())
+avg_shift_map = output_text.avg_shift(ch1[:N0,:].numpy(), ch2_map[:N0,:].numpy())
 avg_shift_max = output_text.avg_shift(ch1[:N0,:].numpy(), ch1_ref[:N0,:])
-
-print('\nThe original overlap was',overlap,'. The mapping has',overlap_map,
-      '. The maximum overlap is estimated to be',overlap_max)
-
-
-print('\nThe original average shift was',avg_shift,'. The mapping has',avg_shift_map,
-      '. The minimum average shift is estimated to be',avg_shift_max)
 
 
 #%% Output
@@ -164,3 +164,8 @@ print('\nThe original average shift was',avg_shift,'. The mapping has',avg_shift
 generate_image.plot_channel(channel1, channel2, channel2m, bounds,
                             ref_channel1, precision)
 print('Done')
+
+print('\nI: The original overlap was',overlap,'. The mapping has',overlap_map,
+      '. The maximum overlap is estimated to be',overlap_max,
+      '\nI: The original average shift was',avg_shift,'. The mapping has',avg_shift_map,
+      '. The minimum average shift is estimated to be',avg_shift_max)

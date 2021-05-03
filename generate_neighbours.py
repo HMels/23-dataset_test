@@ -6,9 +6,10 @@ Created on Thu Apr 29 14:05:40 2021
 """
 import numpy as np
 from photonpy import PostProcessMethods, Context
+import time
 
 
-def find_bright_neighbours(ch1, ch2, threshold = None, maxDistance = 50):
+def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
     '''
     generates a list with arrays containing the neighbours via find_channel_neighbours
     It then deletes all none bright spots.  Also used to make sure output matrix has
@@ -16,7 +17,7 @@ def find_bright_neighbours(ch1, ch2, threshold = None, maxDistance = 50):
 
     Parameters
     ----------
-    ch1 , ch2 : 2xN float numpy array
+    locs_A, locs_B : 2xN float numpy array
         The locations of the localizations.
     threshold : int, optional
         The threshold of neighbouring locs needed to not be filtered. The default is None,
@@ -30,14 +31,14 @@ def find_bright_neighbours(ch1, ch2, threshold = None, maxDistance = 50):
         list filtered on bright spots, with size [2 x threshold]
         containing per indice of ch1 the neighbours in ch2.
     '''
-    idxlist = find_channel_neighbours(ch1, ch2, maxDistance)
+    idxlist = find_channel_neighbours(locs_A, locs_B, maxDistance)
 
     if threshold == None: # threshold = avg + std
         num = []
         for idx in idxlist:
             if idx != []:
                 num.append(idx.shape[1])
-        threshold = np.round(np.average(num) + np.std(num),0).astype('int')
+        threshold = np.round(np.average(num) + 1.5* np.std(num),0).astype('int')
     
     print('Filtering brightest spots...')
     idx1list = []
@@ -52,17 +53,23 @@ def find_bright_neighbours(ch1, ch2, threshold = None, maxDistance = 50):
                 idx2list.append(idx[1,
                                     np.random.choice(idx.shape[1], threshold)
                                     ]) 
-                
-    return [idx1list, idx2list]
+    
+    if idx1list == []:
+        print('\nError: No neighbours generated. Might be related to Threshold!')
+        time.sleep(5)
+        
+    neighbours_A = generate_neighbour_matrix(idx1list, locs_A)
+    neighbours_B = generate_neighbour_matrix(idx2list, locs_B)
+    return neighbours_A, neighbours_B
 
 
-def find_channel_neighbours(ch1, ch2, maxDistance = 50):
+def find_channel_neighbours(locs_A, locs_B, maxDistance = 50):
     '''
     generates a list with arrays containing the neighbours
 
     Parameters
     ----------
-    ch1 , ch2 : 2xN float numpy array
+    locs_A, locs_B : 2xN float numpy array
         The locations of the localizations.
     maxDistance : float/int, optional
         The vicinity in which we search for neighbours. The default is 50.
@@ -76,7 +83,7 @@ def find_channel_neighbours(ch1, ch2, maxDistance = 50):
     print('Finding neighbours...')
     
     with Context() as ctx:
-        counts,indices = PostProcessMethods(ctx).FindNeighbors(ch1, ch2, maxDistance)
+        counts,indices = PostProcessMethods(ctx).FindNeighbors(locs_A, locs_B, maxDistance)
     
     idxlist = []
     pos = 0
@@ -90,4 +97,11 @@ def find_channel_neighbours(ch1, ch2, maxDistance = 50):
         i += 1
             
     return idxlist
+
+
+def generate_neighbour_matrix(idxlist, locs):
+    NN = []
+    for nn in idxlist:
+        NN.append( locs[nn,:] )
+    return np.array(NN)
     

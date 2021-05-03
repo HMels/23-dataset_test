@@ -44,49 +44,9 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
                   ' an estimate of ', round(perc,2),'\% of points are used to calculate the minimum entropy. \nThe setup seems to be OK and the amount of Batches is sufficient.\n')
             time.sleep(2)
     else: 
-        print('I: the total system contains', N, ' points. The setup seems to be OK',
+        print('\nI: the total system contains', N, ' points. The setup seems to be OK',
               '\nNote that for big N, batches shoud be used.\n')
         time.sleep(2)
-
-
-#%%
-def generate_output(locs_A, locs_B, model, variables, deform, print_output = True ):
-    '''
-    generates output channel and text output
-
-    Parameters
-    ----------
-    locs_A ,locs_B : Nx2 float np.array
-        array containing the localizations in channel A and B.
-    model : tf.keras.layer.Layer
-        The model used for optimizing a mapping.
-    deform : Deform class
-        class containing all deformations parameters and functions
-    print_output : bool
-        True if you want to print the results vs comparisson
-
-    Returns
-    -------
-    ch1 : ch2 : Nx2 TensorFlow Tensor
-        array containing the localizations in channel A and B.
-    ch2_mapped_model : Nx2 TensorFlow Tensor
-        array containing the localizations of the mapped channel B.
-
-    '''
-    
-    ch1 = tf.Variable( locs_A, dtype = tf.float32)
-    ch2 = tf.Variable( locs_B, dtype = tf.float32)    
-    '''
-    deform_mod = setup_image.Deform(variables[0],
-                                    variables[1] / 100
-                                    , np.array([0,0]), np.array([1,1]))
-    
-    ch2_mapped_model = tf.Variable( deform_mod.deform(ch2), dtype = tf.float32)
-    '''    
-    ch2_mapped_model = tf.Variable( polynomial_translation(
-        locs_B, variables[0], variables[1]) )
-    #'''  
-    return ch1, ch2, ch2_mapped_model
 
 
 #%% overlap
@@ -110,7 +70,6 @@ def overlap(ch1, ch2):
     
 
 def avg_shift(ch1, ch2):
-    
     dist = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
     return np.average(dist)
     
