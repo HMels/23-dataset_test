@@ -38,7 +38,7 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
         for idx in idxlist:
             if idx != []:
                 num.append(idx.shape[1])
-        threshold = np.round(np.average(num) + 1.5* np.std(num),0).astype('int')
+        threshold = np.round(np.average(num) + np.std(num),0).astype('int')
     
     print('Filtering brightest spots...')
     idx1list = []

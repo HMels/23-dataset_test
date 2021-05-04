@@ -128,30 +128,31 @@ class Poly3Mod(tf.keras.Model):
         return tf.reduce_sum(y, axis = 1)
     
     
+    @tf.autograph.experimental.do_not_convert
     def transform_mat(self, x_input):
         y = tf.stack([
-            tf.concat([self.M1[0,0]*tf.ones([x_input.shape[0],1]), 
-                       self.M1[1,0]*x_input[:,0][:,None],
-                       self.M1[0,1]*x_input[:,1][:,None],
-                       self.M1[1,1]*(x_input[:,0]*x_input[:,1])[:,None],
-                       self.M1[2,1]*((x_input[:,0]**2)*x_input[:,1])[:,None],
-                       self.M1[2,2]*((x_input[:,0]*x_input[:,1])**2)[:,None],
-                       self.M1[1,2]*(x_input[:,0]*(x_input[:,1]**2))[:,None],
-                       self.M1[0,2]*(x_input[:,1]**2)[:,None],
-                       self.M1[2,0]*(x_input[:,0]**2)[:,None]
-                       ], axis = 1),
-            tf.concat([self.M2[0,0]*tf.ones([x_input.shape[0],1]), 
-                       self.M2[1,0]*x_input[:,0][:,None],
-                       self.M2[0,1]*x_input[:,1][:,None],
-                       self.M2[1,1]*(x_input[:,0]*x_input[:,1])[:,None],
-                       self.M2[2,1]*((x_input[:,0]**2)*x_input[:,1])[:,None],
-                       self.M2[2,2]*((x_input[:,0]*x_input[:,1])**2)[:,None],
-                       self.M2[1,2]*(x_input[:,0]*(x_input[:,1]**2))[:,None],
-                       self.M2[0,2]*(x_input[:,1]**2)[:,None],
-                       self.M2[2,0]*(x_input[:,0]**2)[:,None]
-                       ], axis = 1),
-            ], axis = 2)
-        return tf.reduce_sum(y, axis = 1)
+            tf.concat([self.M1[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M1[1,0]*x_input[:,:,0][None],
+                       self.M1[0,1]*x_input[:,:,1][None],
+                       self.M1[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None],
+                       self.M1[2,1]*((x_input[:,:,0]**2)*x_input[:,:,1])[None],
+                       self.M1[2,2]*((x_input[:,:,0]*x_input[:,:,1])**2)[None],
+                       self.M1[1,2]*(x_input[:,:,0]*(x_input[:,:,1]**2))[None],
+                       self.M1[0,2]*(x_input[:,:,1]**2)[None],
+                       self.M1[2,0]*(x_input[:,:,0]**2)[None]
+                       ], axis = 0)[:,:,:,None],
+            tf.concat([self.M2[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M2[1,0]*x_input[:,:,0][None],
+                       self.M2[0,1]*x_input[:,:,1][None],
+                       self.M2[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None],
+                       self.M2[2,1]*((x_input[:,:,0]**2)*x_input[:,:,1])[None],
+                       self.M2[2,2]*((x_input[:,:,0]*x_input[:,:,1])**2)[None],
+                       self.M2[1,2]*(x_input[:,:,0]*(x_input[:,:,1]**2))[None],
+                       self.M2[0,2]*(x_input[:,:,1]**2)[None],
+                       self.M2[2,0]*(x_input[:,:,0]**2)[None]
+                       ], axis = 0)[:,:,:,None]
+            ], axis = 3)
+        return tf.reduce_sum(tf.reduce_sum(y, axis = 0), axis = 3)
 
 
 #%%

@@ -10,29 +10,34 @@ import time
 import matplotlib.pyplot as plt
 
 
-def plot_channel(channel1, channel2, channel3, bounds, ref_channel1, precision):
+def plot_channel(channel1, channel2, channel3, bounds, ref_channel1, precision, 
+                 reference = True):
     print('Plotting...')
     
     axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
     axis = np.reshape(axis, [1,4])[0]
     
-    ref_channel1[:,0] = -1 * ref_channel1[:,0]
+    if reference:
+        ref_channel1[:,0] = -1 * ref_channel1[:,0]
     
     # plotting all channels
     plt.figure()
     plt.subplot(131)
     plt.imshow(channel1, extent = axis)
-    plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
+    if reference:
+        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('original channel 1')
     
     plt.subplot(132)
     plt.imshow(channel2, extent = axis)
-    plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
+    if reference:
+        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('original channel 2')
     
     plt.subplot(133)
     plt.imshow(channel3, extent = axis)
-    plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
+    if reference:
+        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('channel 2 mapped')
 
 
