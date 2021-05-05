@@ -18,7 +18,7 @@ def align_shift(ch1, ch2, mod = None, maxDistance=50):
     
     # Generate Neighbours 
     neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-    ch1.numpy(), ch2.numpy(), threshold=None, maxDistance=50)
+    ch1.numpy(), ch2.numpy(), threshold=10, maxDistance=50)
     nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
@@ -104,4 +104,31 @@ def align(ch1, ch2, mods = [], maxDistance=50):
          ## Training Loop
         model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
         ch2_map = model_apply_grads(ch1, ch2, nn1, nn2, mods) 
+    return ch2_map, mods
+
+
+def align1(ch1, ch2, mods = None, maxDistance=50):
+    print('Aligning channels via Minimum Entropy Shift and Rotation...')
+    
+    if mods == None:
+        mods=[]
+        
+        model = Minimum_Entropy.ShiftMod('shift')
+        opt = tf.optimizers.Adagrad
+        learning_rate = 1.0
+        mods.append( Models(model, learning_rate, opt) )
+        
+        model = Minimum_Entropy.RotationMod('rotation')
+        opt = tf.optimizers.Adagrad
+        learning_rate = 1e-2
+        mods.append( Models(model, learning_rate, opt) )
+        
+        ## Training Loop
+        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
+        mods, ch2_map = model_apply_grads(ch1, ch2, mods) 
+        
+    else: 
+         ## Training Loop
+        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
+        mods, ch2_map = model_apply_grads(ch1, ch2, mods)
     return ch2_map, mods

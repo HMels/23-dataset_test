@@ -115,7 +115,7 @@ def generate_matrix(locs , bounds):
     return channel
 
 
-def reference_clust(locs, precision, bounds, threshold = 50):
+def reference_clust(locs, precision, bounds, threshold = 50, reference=True):
     '''
     Generates the references, which will be placed on clusters in channel 1
 
@@ -130,6 +130,8 @@ def reference_clust(locs, precision, bounds, threshold = 50):
     threshold : int, optional
         The amount of locs per precision which will amount to a reference. 
         The default is 50.
+    reference : bool, optional
+        The on and off button for generating reference points
 
     Returns
     -------
@@ -137,22 +139,24 @@ def reference_clust(locs, precision, bounds, threshold = 50):
         The reference points in nm.
 
     '''
-    
-    print('Generating reference-points for clusters...')
-    
-    locs = locs / precision
-    size_img = np.round( (bounds[:,1] - bounds[:,0]) , 0).astype('int')
-    
-    channel = np.zeros([size_img[0], size_img[1]], dtype = int)
-    for i in range(locs.shape[0]):
-        loc = locs[i,:]
-        if isin_domain(loc, bounds):
-            loc -= bounds[:,0]                       # place the zero point on the left
-            loc = np.round(loc,0).astype('int')
-            channel[loc[0]-1, loc[1]-1] += 1
-    
-    ch_ref = ( np.argwhere(channel >= threshold) + bounds[:,0] + .5) * precision
-    return ch_ref
+    if reference:
+        print('Generating reference-points for clusters...')
+        
+        locs = locs / precision
+        size_img = np.round( (bounds[:,1] - bounds[:,0]) , 0).astype('int')
+        
+        channel = np.zeros([size_img[0], size_img[1]], dtype = int)
+        for i in range(locs.shape[0]):
+            loc = locs[i,:]
+            if isin_domain(loc, bounds):
+                loc -= bounds[:,0]                       # place the zero point on the left
+                loc = np.round(loc,0).astype('int')
+                channel[loc[0]-1, loc[1]-1] += 1
+        
+        ch_ref = ( np.argwhere(channel >= threshold) + bounds[:,0] + .5) * precision
+        return ch_ref
+    else:
+        return None
 
 
 def isin_domain(pos, img):

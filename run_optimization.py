@@ -9,6 +9,51 @@ import tensorflow as tf
 import generate_neighbours
 
 #%% functions
+def get_apply_grad_fn_dynamic1():
+    #@tf.function
+    def apply_grad(ch1, ch2, mods):
+        print('Optimizing...')
+        n = len(mods)
+        i=0
+        endloop = False
+        if n == 3:
+            while not endloop:
+                j = i%n                                         # for looping over the different models
+                endloop = mods[0].endloop * mods[1].endloop * mods[2].endloop
+                mods[j].Training_loop(ch1, ch2)                         # the training loop
+                i+=1     
+                if i%(150)==0:
+                    print('i = ',i//n)        
+        elif n ==2:
+            while not endloop:
+                j = i%n                                         # for looping over the different models
+                endloop = mods[0].endloop * mods[1].endloop
+                mods[j].Training_loop(ch1, ch2)                         # the training loop
+                i+=1     
+                if i%(100)==0:
+                    print('i = ',i//n) 
+        elif n ==1:
+            while not mods[0].endloop:
+                mods[0].Training_loop(ch1, ch2)                         # the training loop
+                i+=1     
+                if i%(50)==0:
+                    print('i = ',i)   
+        else: 
+            print("Number of modules not configurable!!! ")
+        print('completed in',i//n,' iterations')
+        
+        # delete this loop
+        for i in range(len(mods)):
+            print('Model: ', mods[i].model)
+            print('+ variables',mods[i].var)
+            print('\n')
+            ch2 = mods[i].model.transform_vec(ch2)
+            
+        return mods, ch2
+    return apply_grad
+
+
+#%% functions1
 def run_optimization(ch1, ch2, mods, maxDistance = 50):
     '''
     Parameters
@@ -28,7 +73,7 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     '''
     # Generate Neighbours 
     neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-    ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None)
+    ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=10)
     nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
@@ -62,9 +107,6 @@ def get_apply_grad_fn_dynamic():
             
         return mods, ch2
     return apply_grad
-
-
-
     
 #%% 
 class Models():
@@ -99,12 +141,12 @@ class Models():
     def Reject_fn(self, y1):
         # Looks if the new entropy is better and adjusts the system accordingly
         if y1<self.entropy:
-            self.Reject = False
+            #self.Reject = False
             self.rejections = 0
             self.reset_learning_rate(self.learning_rate*1.2)
             self.endloop = False
         else:
-            self.Reject = True
+            #self.Reject = True
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)

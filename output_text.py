@@ -69,7 +69,7 @@ def overlap(ch1, ch2):
     return np.sum(np.sum(overlap))
     
 
-def avg_shift(ch1, ch2):
+def avg_dist(ch1, ch2):
     dist = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
     return np.average(dist)
     

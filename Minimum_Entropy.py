@@ -1,5 +1,5 @@
 
-# MinEntropy.py
+# Minimum_Entropy.py
 '''
 This script is used to calculate the Mapping via the Minimum Entropy Method described by Cnossen2021
 
@@ -23,9 +23,15 @@ import tensorflow as tf
 
 #%reload_ext tensorboard
 
+#%%
+@tf.autograph.experimental.do_not_convert
+def Rel_entropy(ch1, ch2):
+    return tf.reduce_sum(tf.reduce_sum(tf.square(ch1-ch2)))
+
+
 #%% functions
 @tf.autograph.experimental.do_not_convert
-def Rel_entropy(ch1,ch2):#,neighbour_idx):
+def Rel_entropy1(ch1,ch2):
     '''
     Parameters
     ----------
@@ -96,9 +102,10 @@ class Poly3Mod(tf.keras.Model):
     
     
     @tf.function 
-    def call(self, ch1, ch2):#, neighbour_idx):
+    def call(self, ch1, ch2):
         ch2_mapped = self.transform_mat(ch2)
-        return Rel_entropy(ch1, ch2_mapped)#, neighbour_idx)
+        #ch2_mapped = self.transform_vec(ch2)
+        return Rel_entropy(ch1, ch2_mapped)
     
     
     @tf.autograph.experimental.do_not_convert
@@ -173,6 +180,7 @@ class ShiftMod(tf.keras.Model):
     @tf.function
     def call(self, ch1, ch2):
         ch2_mapped = self.transform_mat( ch2 )
+        #ch2_mapped = self.transform_vec( ch2 )
         return Rel_entropy(ch1, ch2_mapped)
     
     
@@ -204,6 +212,7 @@ class RotationMod(tf.keras.Model):
     @tf.function
     def call(self, ch1, ch2):
         ch2_mapped = self.transform_mat( ch2 )
+        #ch2_mapped = self.transform_vec( ch2 )
         return Rel_entropy(ch1, ch2_mapped)
     
     
