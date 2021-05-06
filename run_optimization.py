@@ -11,7 +11,7 @@ import generate_neighbours
 #%% functions
 def get_apply_grad_fn_dynamic1():
     #@tf.function
-    def apply_grad(ch1, ch2, mods):
+    def apply_grad(ch1, ch2, nn1, nn2, mods):
         print('Optimizing...')
         n = len(mods)
         i=0
@@ -73,7 +73,7 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     '''
     # Generate Neighbours 
     neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-    ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=10)
+    ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None)
     nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
@@ -91,7 +91,8 @@ def get_apply_grad_fn_dynamic():
         endloop = False
         while not endloop:
             j = i%n                                         # for looping over the different models
-            endloop = mods[0].endloop * mods[1].endloop * mods[1].endloop
+            if j==0: endloop=1
+            endloop = endloop*mods[j].endloop
             mods[j].Training_loop(nn1, nn2)                         # the training loop
             i+=1     
             if i%(50*n)==0:
@@ -122,7 +123,6 @@ class Models():
         self.Reject =  False
         self.endloop = False
         self.rejections = 0
-        self.step_along_gradient = self.load_step_along_gradient(model)
         self.var_old = model.trainable_weights.copy()
         
         
@@ -141,16 +141,16 @@ class Models():
     def Reject_fn(self, y1):
         # Looks if the new entropy is better and adjusts the system accordingly
         if y1<self.entropy:
-            #self.Reject = False
+            self.Reject = False
             self.rejections = 0
             self.reset_learning_rate(self.learning_rate*1.2)
             self.endloop = False
         else:
-            #self.Reject = True
+            self.Reject = True
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)
-            if self.rejections==20:                                 # convergence reached
+            if self.rejections==100:                                 # convergence reached
                 self.endloop = True
                 
                 
@@ -161,29 +161,4 @@ class Models():
         
     def Train(self, nn1, nn2):
         while not self.endloop:
-            self.Training_loop(nn1, nn2)    
-            
-            
-    def load_step_along_gradient(self, model):
-        if model.name == 'rotation':
-            def step_along_gradient(var, learning_rate, grads, var_new):      # step along gradient for rotation
-                var_new[0].assign(var[0] + learning_rate*grads[0])
-                return var_new
-            return step_along_gradient
-        
-        elif model.name == 'shift':
-            def step_along_gradient(var, learning_rate, grads, var_new):      # step along gradient for rotation
-                var_new[0][0].assign(var[0][0] + learning_rate*grads[0][0])
-                var_new[0][1].assign(var[0][1] + learning_rate*grads[0][1])
-                return var_new
-            return step_along_gradient
-        
-        elif model.name == 'polynomial':
-            def step_along_gradient(var, learning_rate, grads, var_new):      # step along gradient for rotation
-                var_new[0].assign(var[0] + learning_rate*grads[0])
-                var_new[1].assign(var[1] + learning_rate*grads[1])
-                return var_new
-            
-            return step_along_gradient
-        else:
-            print('Error: ',model.name,' module not in existence!')
+            self.Training_loop(nn1, nn2)

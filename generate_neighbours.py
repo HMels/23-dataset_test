@@ -9,7 +9,7 @@ from photonpy import PostProcessMethods, Context
 import time
 
 
-def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
+def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
     '''
     generates a list with arrays containing the neighbours via find_channel_neighbours
     It then deletes all none bright spots.  Also used to make sure output matrix has
@@ -33,18 +33,63 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
     '''
     idxlist = find_channel_neighbours(locs_A, locs_B, maxDistance)
 
+    print('Generating all neighbouring spots...')
+    idx1list = []
+    idx2list = []
+    maxFill = 0
+    for idx in idxlist:
+        Fillsize = idx.size
+        if Fillsize > 0:
+            idx1list.append(idx[0,:]) 
+            idx2list.append(idx[1,:]) 
+            if Fillsize > maxFill: maxFill = Fillsize
+    
+    if idx1list == []:
+        print('\nError: No neighbours generated. Might be related to Threshold!')
+        time.sleep(5)
+        
+    neighbours_A = generate_neighbour_matrix(idx1list, locs_A, maxFill)
+    neighbours_B = generate_neighbour_matrix(idx2list, locs_B, maxFill)
+    print('Found',neighbours_A.shape[1],'neighbours for',neighbours_A.shape[0],'localizations')
+    return neighbours_A, neighbours_B
+
+
+def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
+    '''
+    generates a list with arrays containing the neighbours via find_channel_neighbours
+    It then deletes all none bright spots.  Also used to make sure output matrix has
+    uniform size
+
+    Parameters
+    ----------
+    locs_A, locs_B : 2xN float numpy array
+        The locations of the localizations.
+    threshold : int, optional
+        The threshold of neighbouring locs needed to not be filtered. The default is None,
+        which means the program will use a threshold of average + std
+    maxDistance : float/int, optional
+        The vicinity in which we search for neighbours. The default is 50.
+        
+    Returns
+    -------
+    idxlist_new : list
+        list filtered on bright spots, with size [N x threshold x 2]
+        containing per indice of ch1 the neighbours in ch2.
+    '''
+    idxlist = find_channel_neighbours(locs_A, locs_B, maxDistance)
+
     if threshold == None: # threshold = avg + std
         num = []
         for idx in idxlist:
-            if idx != []:
+            if idx.size>0:
                 num.append(idx.shape[1])
-        threshold = np.round(np.average(num) + np.std(num),0).astype('int')
+        threshold = 30#np.round(np.average(num) + np.std(num),0).astype('int')
     
     print('Filtering for brightest spots...')
     idx1list = []
     idx2list = []
     for idx in idxlist:
-        if idx != []:
+        if idx.size>0:
             if idx.shape[1] > threshold:
                 # we want to have a max of threshold in our array
                 idx1list.append(idx[0,
@@ -57,9 +102,10 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
     if idx1list == []:
         print('\nError: No neighbours generated. Might be related to Threshold!')
         time.sleep(5)
-        
+    
     neighbours_A = generate_neighbour_matrix(idx1list, locs_A)
     neighbours_B = generate_neighbour_matrix(idx2list, locs_B)
+    print('Generated',neighbours_A.shape[1],'neighbours for',neighbours_A.shape[0],'localizations')
     return neighbours_A, neighbours_B
 
 
@@ -99,9 +145,16 @@ def find_channel_neighbours(locs_A, locs_B, maxDistance = 50):
     return idxlist
 
 
-def generate_neighbour_matrix(idxlist, locs):
-    NN = []
-    for nn in idxlist:
-        NN.append( locs[nn,:] )
-    return np.array(NN)
+def generate_neighbour_matrix(idxlist, locs, maxFill = None):
+    if maxFill == None:
+        NN = []
+        for nn in idxlist:
+            NN.append(locs[nn,:])
+    elif maxFill > 0:
+        NN = []
+        for nn in idxlist:
+            fill = np.zeros( [maxFill - nn.size, 2] , dtype=float)
+            NN.append(np.concatenate([ locs[nn,:] , fill ]))
+    else: print('Error; Array Size [maxFill] invalid')
+    return np.stack(NN)
     

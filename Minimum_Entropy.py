@@ -25,13 +25,13 @@ import tensorflow as tf
 
 #%%
 @tf.autograph.experimental.do_not_convert
-def Rel_entropy(ch1, ch2):
-    return tf.reduce_sum(tf.reduce_sum(tf.square(ch1-ch2)))
+def Rel_entropy1(ch1, ch2):
+    return tf.reduce_sum(tf.square(ch1-ch2))
 
 
 #%% functions
 @tf.autograph.experimental.do_not_convert
-def Rel_entropy1(ch1,ch2):
+def Rel_entropy(ch1,ch2):
     '''
     Parameters
     ----------

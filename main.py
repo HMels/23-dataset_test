@@ -66,7 +66,7 @@ path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' ,
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
 
 ## System Parameters
-error = 0                                          # localization error in nm
+error = 0                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
 
 ## Deformation of channel B
@@ -125,8 +125,9 @@ for i in range(len(models)):
 
 
 # pre-aligning the data with MinEntropy
-ch2_map , mods1 = pre_alignment.align(ch1, ch2, mods=None, maxDistance=50)
+ch2_map , mods1 = pre_alignment.align(ch1, ch2, mods=None, maxDistance=150)
 
+'''
 ## training for decreasing search areas
 for i in range(len(search_area)):
     # training loop
@@ -139,7 +140,7 @@ for i in range(len(search_area)):
             mod.endloop = False
             mod.reset_learning_rate(mod.learning_rate/10)
 print('Optimization Done!')
-
+'''
 
 #%% generating image
 ## Channel Generation
