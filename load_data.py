@@ -26,13 +26,22 @@ def load_data_GaussianSpots(path, alignment = True, zoom = 10, pix_size = 100):
         The [x1, x2] locations of the localizations of Channel 1 and 2.
 
     '''
-    
-    ch1 = Dataset.load(path[0])
-    ch2 = Dataset.load(path[1])
+    if len(path)==1:
+        print('Loading dataset... \n Grouping...')
+        ds = Dataset.load(path[0],saveGroups=True)
+        ch1 = ds[ds.group==0]
+        ch2 = ds[ds.group==1]
+    elif len(path)==2:
+        print('Loading dataset...')
+        ch1 = Dataset.load(path[0])
+        ch2 = Dataset.load(path[1])
+    else:
+        print('Error: Path invalid for current group setting!')
     
     if alignment:
         print('Alignning both datasets')
         Dataset.align(ch1, ch2)
+    
 
     ch1_data = ch1.renderGaussianSpots(zoom = zoom)
     ch2_data = ch2.renderGaussianSpots(zoom = zoom)
@@ -63,12 +72,22 @@ def load_data_localizations(path, alignment = True, pix_size = 100):
         The [x1, x2] locations of the localizations of Channel 1 and 2.
 
     '''
-    ch1 = Dataset.load(path[0])
-    ch2 = Dataset.load(path[1])
+    if len(path)==1:
+        print('Loading dataset... \n Grouping...')
+        ds = Dataset.load(path[0],saveGroups=True)
+        ch1 = ds[ds.group==0]
+        ch2 = ds[ds.group==1]
+    elif len(path)==2:
+        print('Loading dataset...')
+        ch1 = Dataset.load(path[0])
+        ch2 = Dataset.load(path[1])
+    else:
+        print('Error: Path invalid for current group setting!')
     
     if alignment:
         print('Alignning both datasets')
         Dataset.align(ch1, ch2)
+    
     
     # Getting the data in the right format 
     # e.g. x1 being the longest row 
@@ -101,8 +120,17 @@ def load_data_subset(path, subset = 0.2, alignment = True, pix_size = 100):
         The [x1, x2] locations of the localizations of Channel 1 and 2.
 
     '''
-    ch1 = Dataset.load(path[0])
-    ch2 = Dataset.load(path[1])
+    if len(path)==1:
+        print('Loading dataset... \n Grouping...')
+        ds = Dataset.load(path[0],saveGroups=True)
+        ch1 = ds[ds.group==0]
+        ch2 = ds[ds.group==1]
+    elif len(path)==2:
+        print('Loading dataset...')
+        ch1 = Dataset.load(path[0])
+        ch2 = Dataset.load(path[1])
+    else:
+        print('Error: Path invalid for current group setting!')
     
     if alignment:
         print('Alignning both datasets')

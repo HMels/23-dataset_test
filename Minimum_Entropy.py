@@ -20,8 +20,44 @@ The script also contains the next Model in the form of Classes
 |- Polynomial
 '''
 import tensorflow as tf
+import numpy as np
+
+from run_optimization import Models
 
 #%reload_ext tensorboard
+
+
+#%%
+def initiate_model(models, learning_rates, optimizers):
+    '''
+    Initiate the MinEntropy Model consisting of an array of sub-models
+
+    Parameters
+    ----------
+    models : tf.keras.Layers.layer List (can also be single element)
+        A certain model described in this file.
+    learning_rates : float numpy array (can also be single element)
+        The learning rate per model.
+    optimizers : tf.optimizers List (can also be single element)
+        The optimizer to be used.
+
+    Returns
+    -------
+    mods : List
+        List containing the different initiated layers of the model.
+
+    '''
+    if not isinstance(models, list): models= [models]
+    if isinstance(learning_rates, list): learning_rates= np.array(learning_rates)
+    if not isinstance(learning_rates, np.ndarray): learning_rates= np.array([learning_rates])
+    if not isinstance(optimizers, list): optimizers= [optimizers]
+    
+    mods = []
+    for i in range(len(models)):
+        mods.append( Models(model=models[i], learning_rate = learning_rates[i], 
+                            opt=optimizers[i] ))
+        mods[i].var = mods[i].model.trainable_variables
+    return mods
 
 #%%
 @tf.autograph.experimental.do_not_convert
@@ -75,9 +111,6 @@ def KL_divergence(ch1, ch2):
 
 
 #%% Classes  
-'''
-needs to be adjusted for NN!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
-'''
 class Poly3Mod(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
@@ -161,8 +194,72 @@ class Poly3Mod(tf.keras.Model):
             ], axis = 3)
         return tf.reduce_sum(tf.reduce_sum(y, axis = 0), axis = 3)
 
-
-#%%
+#%% Polynomial 2
+class Poly2Mod(tf.keras.Model):
+    '''
+    Main Layer for calculating the relative entropy of a certain deformation
+    ----------
+    - it takes the x_input, the [x1,x2] locations of all localizations
+    - gives it a certain polynomial deformation via the Polynomial Class
+    - calculates the relative entropy via Rel_entropy()    
+    '''
+    
+    def __init__(self, name = 'polynomial'): 
+        super().__init__(name=name) 
+        self.M1 = tf.Variable([[0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M1'
+                              )
+        self.M2 = tf.Variable([[0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M2'
+                              )
+    
+    
+    @tf.function 
+    def call(self, ch1, ch2):
+        ch2_mapped = self.transform_mat(ch2)
+        #ch2_mapped = self.transform_vec(ch2)
+        return Rel_entropy(ch1, ch2_mapped)
+    
+    
+    @tf.autograph.experimental.do_not_convert
+    def transform_vec(self, x_input):
+        y = tf.stack([
+            tf.concat([self.M1[0,0]*tf.ones([x_input.shape[0],1]), 
+                       self.M1[1,0]*x_input[:,0][:,None],
+                       self.M1[0,1]*x_input[:,1][:,None],
+                       self.M1[1,1]*(x_input[:,0]*x_input[:,1])[:,None]
+                       ], axis = 1),
+            tf.concat([self.M2[0,0]*tf.ones([x_input.shape[0],1]), 
+                       self.M2[1,0]*x_input[:,0][:,None],
+                       self.M2[0,1]*x_input[:,1][:,None],
+                       self.M2[1,1]*(x_input[:,0]*x_input[:,1])[:,None]
+                       ], axis = 1),
+            ], axis = 2)
+        return tf.reduce_sum(y, axis = 1)
+    
+    
+    @tf.autograph.experimental.do_not_convert
+    def transform_mat(self, x_input):
+        y = tf.stack([
+            tf.concat([self.M1[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M1[1,0]*x_input[:,:,0][None],
+                       self.M1[0,1]*x_input[:,:,1][None],
+                       self.M1[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None]
+                       ], axis = 0)[:,:,:,None],
+            tf.concat([self.M2[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M2[1,0]*x_input[:,:,0][None],
+                       self.M2[0,1]*x_input[:,:,1][None],
+                       self.M2[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None]
+                       ], axis = 0)[:,:,:,None]
+            ], axis = 3)
+        return tf.reduce_sum(tf.reduce_sum(y, axis = 0), axis = 3)
+    
+    
+#%% ShiftMod
 class ShiftMod(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation
@@ -194,7 +291,7 @@ class ShiftMod(tf.keras.Model):
         return x_input + self.d[None,None]
     
     
-#%%
+#%% RotationMod
 class RotationMod(tf.keras.Model):
     '''
     Main Layer for calculating the relative entropy of a certain deformation

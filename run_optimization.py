@@ -8,50 +8,6 @@ import tensorflow as tf
 
 import generate_neighbours
 
-#%% functions
-def get_apply_grad_fn_dynamic1():
-    #@tf.function
-    def apply_grad(ch1, ch2, nn1, nn2, mods):
-        print('Optimizing...')
-        n = len(mods)
-        i=0
-        endloop = False
-        if n == 3:
-            while not endloop:
-                j = i%n                                         # for looping over the different models
-                endloop = mods[0].endloop * mods[1].endloop * mods[2].endloop
-                mods[j].Training_loop(ch1, ch2)                         # the training loop
-                i+=1     
-                if i%(150)==0:
-                    print('i = ',i//n)        
-        elif n ==2:
-            while not endloop:
-                j = i%n                                         # for looping over the different models
-                endloop = mods[0].endloop * mods[1].endloop
-                mods[j].Training_loop(ch1, ch2)                         # the training loop
-                i+=1     
-                if i%(100)==0:
-                    print('i = ',i//n) 
-        elif n ==1:
-            while not mods[0].endloop:
-                mods[0].Training_loop(ch1, ch2)                         # the training loop
-                i+=1     
-                if i%(50)==0:
-                    print('i = ',i)   
-        else: 
-            print("Number of modules not configurable!!! ")
-        print('completed in',i//n,' iterations')
-        
-        # delete this loop
-        for i in range(len(mods)):
-            print('Model: ', mods[i].model)
-            print('+ variables',mods[i].var)
-            print('\n')
-            ch2 = mods[i].model.transform_vec(ch2)
-            
-        return mods, ch2
-    return apply_grad
-
 
 #%% functions1
 def run_optimization(ch1, ch2, mods, maxDistance = 50):
@@ -86,7 +42,7 @@ def get_apply_grad_fn_dynamic():
     #@tf.function
     def apply_grad(ch1, ch2, nn1, nn2, mods):
         print('Optimizing...')
-        n = len(mods)
+        n=len(mods)
         i=0
         endloop = False
         while not endloop:
@@ -94,9 +50,10 @@ def get_apply_grad_fn_dynamic():
             if j==0: endloop=1
             endloop = endloop*mods[j].endloop
             mods[j].Training_loop(nn1, nn2)                         # the training loop
+            
             i+=1     
-            if i%(50*n)==0:
-                print('i = ',i//n)                         
+            if i%(50*n)==0: print('i = ',i//n)
+                      
         print('completed in',i//n,' iterations')
         
         # delete this loop
@@ -109,6 +66,7 @@ def get_apply_grad_fn_dynamic():
         return mods, ch2
     return apply_grad
     
+
 #%% 
 class Models():
     def __init__(self, model, learning_rate, opt,

@@ -5,10 +5,8 @@ Created on Thu Apr 22 14:26:22 2021
 @author: Mels
 """
 import numpy as np
-import tensorflow as tf
 import time
-
-import setup_image
+import matplotlib.pyplot as plt
 
 #%% error handling of batches
 def Info_batch(N, num_batches, batch_size, Batch_on=True):
@@ -49,29 +47,48 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
         time.sleep(2)
 
 
-#%% overlap
-def overlap(ch1, ch2):
+#%% calculating distribution 
+def precision_distr(ch1, ch2, ch2m, bin_width = 5):
     '''
-    Calculates the overlap of the channels
+    Generates a histogram showing the distribution of distances between coupled points
 
     Parameters
     ----------
-    ch1 , ch2 : NxM np.array
-        Array containing the information of the image.
+    ch1 : Nx2
+        The localizations of channel 1.
+    ch2 , ch2m : Nx2
+        The localizations of channel 2 and the mapped channel 2. The indexes 
+        of should be one-to-one with channel 1
+    bin_width : int, optional
+        The width of a bin. The default is 20.
 
     Returns
     -------
-    float
-        The overlap metric.
+    avg1, avg2 : float
+        The average distance between the channels
 
     '''
-    overlap = ch1*ch2
-    return np.sum(np.sum(overlap))
+    dist1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
+    dist2 = np.sqrt( np.sum( ( ch1 - ch2m )**2, axis = 1) )
     
-
-def avg_dist(ch1, ch2):
-    dist = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
-    return np.average(dist)
+    avg1 = np.average(dist1)
+    avg2 = np.average(dist2)
+    
+    nbins1 = round(( np.max(dist1) - np.min(dist1) ) / bin_width ,0).astype(int)
+    nbins2 = round(( np.max(dist2) - np.min(dist2) ) / bin_width ,0).astype(int)
+    
+    plt.figure()
+    plt.title('Distribution of distances between coupled Localizations')
+    n1 = plt.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', bins=nbins1)
+    n2 = plt.hist(dist2, label='Mapped', alpha=0.7, edgecolor='yellow', bins=nbins2)
+    ymax = np.max([np.max(n1[0]), np.max(n2[0])]) + 5
+    plt.vlines(avg1, color='purple', ymin=0, ymax=ymax)
+    plt.vlines(avg2, color='green', ymin = 0, ymax=ymax)
+    plt.ylim([0,ymax])
+    plt.legend()
+    plt.show()
+    
+    return avg1, avg2
     
 
 #%% Polynomial translation

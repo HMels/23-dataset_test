@@ -44,9 +44,13 @@ def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
             idx2list.append(idx[1,:]) 
             if Fillsize > maxFill: maxFill = Fillsize
     
-    if idx1list == []:
-        print('\nError: No neighbours generated. Might be related to Threshold!')
-        time.sleep(5)
+    if idx1list == []: # generate the neighbours via kNN 
+        print('\nError: No neighbours generated. Might be related to Threshold!',
+              '\nNeighbours will be generated via KNN...')
+        k = 16
+        for i in range(locs_A.shape[0]):
+            idx1list.append( (i * np.ones([k,1], dtype=int)) )
+        idx2list = KNN(locs_A, locs_B, k)
         
     neighbours_A = generate_neighbour_matrix(idx1list, locs_A, maxFill)
     neighbours_B = generate_neighbour_matrix(idx2list, locs_B, maxFill)
@@ -83,7 +87,7 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
         for idx in idxlist:
             if idx.size>0:
                 num.append(idx.shape[1])
-        threshold = 30#np.round(np.average(num) + np.std(num),0).astype('int')
+        threshold = 30 #np.round(np.average(num) + np.std(num),0).astype('int')
     
     print('Filtering for brightest spots...')
     idx1list = []
@@ -99,10 +103,15 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
                                     np.random.choice(idx.shape[1], threshold)
                                     ]) 
     
-    if idx1list == []:
-        print('\nError: No neighbours generated. Might be related to Threshold!')
-        time.sleep(5)
     
+    if idx1list == []: # generate the neighbours via kNN 
+        print('\nError: No neighbours generated. Might be related to Threshold!',
+              '\nNeighbours will be generated via KNN...')
+        k = 16
+        for i in range(locs_A.shape[0]):
+            idx1list.append( (i * np.ones(k, dtype=int)) )
+        idx2list = KNN(locs_A, locs_B, k)
+        
     neighbours_A = generate_neighbour_matrix(idx1list, locs_A)
     neighbours_B = generate_neighbour_matrix(idx2list, locs_B)
     print('Generated',neighbours_A.shape[1],'neighbours for',neighbours_A.shape[0],'localizations')
@@ -157,4 +166,30 @@ def generate_neighbour_matrix(idxlist, locs, maxFill = None):
             NN.append(np.concatenate([ locs[nn,:] , fill ]))
     else: print('Error; Array Size [maxFill] invalid')
     return np.stack(NN)
+
+
+def KNN(locs_A, locs_B, k):
+    '''
+    k-Nearest Neighbour Distance calculator
+
+    Parameters
+    ----------
+    locs_A, locs_B : Nx2 float array
+        The array containing the [x1, x2] locations of the localizations.
+    k : int
+        The number of kNN we want
+
+    Returns
+    -------
+    knn : [k, N, 2] TensorFlow Tensor
+        Tensor Containing the squared [x1,x2] distances for k rows of kNN, 
+        for all N localizations in the colums.
+
+    '''
+    knn = []
+    for loc in locs_A:
+        distances = np.sum((loc - locs_B)**2 , axis = 1)
+        knn.append( np.argsort( distances )[:k] )
+    
+    return knn
     
