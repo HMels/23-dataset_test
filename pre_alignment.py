@@ -8,7 +8,8 @@ import tensorflow as tf
 
 from run_optimization import Models
 
-import Minimum_Entropy
+import MinEntropy
+#import MinEntropy_direct as MinEntropy
 import generate_neighbours
 import run_optimization
 
@@ -23,7 +24,7 @@ def align_shift(ch1, ch2, mod = None, maxDistance=50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     if mod == None:
-        model = Minimum_Entropy.ShiftMod('shift')
+        model = MinEntropy.ShiftMod('shift')
         opt = tf.optimizers.Adagrad
         learning_rate = 1.0
         mod = Models(model, learning_rate, opt)
@@ -54,7 +55,7 @@ def align_rotation(ch1, ch2, mod = None, maxDistance=50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
         
     if mod == None:
-        model = Minimum_Entropy.RotationMod('rotation')
+        model = MinEntropy.RotationMod('rotation')
         opt = tf.optimizers.Adagrad
         learning_rate = 1e-2
         mod = Models(model, learning_rate, opt)
@@ -86,49 +87,23 @@ def align(ch1, ch2, mods = [], maxDistance=50):
     if mods == None:
         mods=[]
         
-        model = Minimum_Entropy.ShiftMod('shift')
+        model = MinEntropy.ShiftMod('shift')
         opt = tf.optimizers.Adagrad
         learning_rate = .1
         mods.append( Models(model, learning_rate, opt) )
         
-        model = Minimum_Entropy.RotationMod('rotation')
+        model = MinEntropy.RotationMod('rotation')
         opt = tf.optimizers.Adagrad
         learning_rate = 1e-2
         mods.append( Models(model, learning_rate, opt) )
         
         ## Training Loop
-        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
+        model_apply_grads = run_optimization.get_apply_grad_fn()
         mods, ch2_map = model_apply_grads(ch1, ch2, nn1, nn2, mods) 
         
     else: 
          ## Training Loop
-        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
+        model_apply_grads = run_optimization.get_apply_grad_fn()
         ch2_map = model_apply_grads(ch1, ch2, nn1, nn2, mods) 
     return ch2_map, mods
 
-#%%
-def align1(ch1, ch2, mods = None, maxDistance=50):
-    print('Aligning channels via Minimum Entropy Shift and Rotation...')
-    
-    if mods == None:
-        mods=[]
-        
-        model = Minimum_Entropy.ShiftMod('shift')
-        opt = tf.optimizers.Adagrad
-        learning_rate = 1.0
-        mods.append( Models(model, learning_rate, opt) )
-        
-        model = Minimum_Entropy.RotationMod('rotation')
-        opt = tf.optimizers.Adagrad
-        learning_rate = 1e-2
-        mods.append( Models(model, learning_rate, opt) )
-        
-        ## Training Loop
-        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
-        mods, ch2_map = model_apply_grads(ch1, ch2, 0, 0, mods) 
-        
-    else: 
-         ## Training Loop
-        model_apply_grads = run_optimization.get_apply_grad_fn_dynamic()
-        mods, ch2_map = model_apply_grads(ch1, ch2, 0, 0, mods)
-    return ch2_map, mods

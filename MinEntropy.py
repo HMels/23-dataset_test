@@ -20,44 +20,7 @@ The script also contains the next Model in the form of Classes
 |- Polynomial
 '''
 import tensorflow as tf
-import numpy as np
 
-from run_optimization import Models
-
-#%reload_ext tensorboard
-
-
-#%%
-def initiate_model(models, learning_rates, optimizers):
-    '''
-    Initiate the MinEntropy Model consisting of an array of sub-models
-
-    Parameters
-    ----------
-    models : tf.keras.Layers.layer List (can also be single element)
-        A certain model described in this file.
-    learning_rates : float numpy array (can also be single element)
-        The learning rate per model.
-    optimizers : tf.optimizers List (can also be single element)
-        The optimizer to be used.
-
-    Returns
-    -------
-    mods : List
-        List containing the different initiated layers of the model.
-
-    '''
-    if not isinstance(models, list): models= [models]
-    if isinstance(learning_rates, list): learning_rates= np.array(learning_rates)
-    if not isinstance(learning_rates, np.ndarray): learning_rates= np.array([learning_rates])
-    if not isinstance(optimizers, list): optimizers= [optimizers]
-    
-    mods = []
-    for i in range(len(models)):
-        mods.append( Models(model=models[i], learning_rate = learning_rates[i], 
-                            opt=optimizers[i] ))
-        mods[i].var = mods[i].model.trainable_variables
-    return mods
 
 #%%
 @tf.autograph.experimental.do_not_convert

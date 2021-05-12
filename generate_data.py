@@ -8,7 +8,7 @@ import load_data
 
 #%% functions
 def run_channel_generation(path, deform, error = 10, Noise = 0.1,
-                           realdata = True, subset = 1):
+                           realdata = True, subset = 1, pix_size = 100):
     '''
     Parameters
     ----------
@@ -25,6 +25,8 @@ def run_channel_generation(path, deform, error = 10, Noise = 0.1,
         The default is True
     subset : float, optional
         The percentage of the original dataset we want to import. The default is 1
+    pix_size : float, optional
+        The size per pixel in nm. The default is 100
         
     Returns
     -------
@@ -35,10 +37,10 @@ def run_channel_generation(path, deform, error = 10, Noise = 0.1,
 
     if subset == 1:     # load dataset
         locs_A, locs_B = load_data.load_data_localizations(
-            path, alignment = realdata)
+            path, pix_size=pix_size,  alignment = realdata)
     else:               # load dataset subset
         locs_A, locs_B = load_data.load_data_subset(
-            path, subset, alignment = realdata)
+            path, subset, pix_size=pix_size, alignment = realdata)
         
     if not realdata:    # generate channel based on dataset with induced error 
         locs_B = locs_A.copy()

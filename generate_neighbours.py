@@ -182,8 +182,7 @@ def KNN(locs_A, locs_B, k):
     Returns
     -------
     knn : [k, N, 2] TensorFlow Tensor
-        Tensor Containing the squared [x1,x2] distances for k rows of kNN, 
-        for all N localizations in the colums.
+        Tensor Containing the matrix of kNN 
 
     '''
     knn = []

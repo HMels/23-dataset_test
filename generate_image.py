@@ -154,6 +154,9 @@ def reference_clust(locs, precision, bounds, threshold = 50, reference=True):
                 channel[loc[0]-1, loc[1]-1] += 1
         
         ch_ref = ( np.argwhere(channel >= threshold) + bounds[:,0] + .5) * precision
+        
+        if ch_ref.shape[0] == 0:
+            print('No reference-points for clusters were generated!')
         return ch_ref
     else:
         return None

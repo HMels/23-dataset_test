@@ -46,8 +46,9 @@ from setup_image import Deform
 import generate_data
 import pre_alignment
 import run_optimization
-import Minimum_Entropy
-import output_text
+import MinEntropy
+#import MinEntropy_direct as MinEntropy
+import output_fn
 import generate_image
 
 #exec(open("./setup.py").read())
@@ -60,7 +61,8 @@ p.mkdir(exist_ok=True)
 #%% Channel Generation
 ## Dataset
 realdata = True                                    # load real data or generate from real data
-subset = 1                                        # percentage of original dataset
+subset = 1                                         # percentage of original dataset
+pix_size = 1
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
 path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
@@ -79,9 +81,9 @@ deform = Deform(shift, rotation, shear, scaling)
 
 
 #%% Optimization models and parameters
-models = [Minimum_Entropy.ShiftMod('shift'), 
-          Minimum_Entropy.RotationMod('rotation'),
-          Minimum_Entropy.Poly3Mod('polynomial')
+models = [MinEntropy.ShiftMod('shift'), 
+          MinEntropy.RotationMod('rotation'),
+          MinEntropy.Poly3Mod('polynomial')
           ]
 optimizers = [tf.optimizers.Adagrad, 
               tf.optimizers.Adagrad, 
@@ -89,7 +91,7 @@ optimizers = [tf.optimizers.Adagrad,
               ]
 learning_rates = np.array([1, 
                            1e-2,
-                           1e-18
+                           1e-17
                            ])
 
 # Batches used in training 
@@ -97,12 +99,22 @@ Batch_on = False
 batch_size = 4000                                   # max amount of points per batch
 num_batches = np.array([3,3], dtype = int)          # amount of [x1,x2] batches
 
-plot = False                                        # do we want to generate a plot
+
+#%% output params
+plt.close('all')
+
+hist_output = True                                  # do we want to have the histogram output
+bin_width = 2                                      # Bin width in nm
+
+plot_img = True                                     # do we want to generate a plot
+precision = 5                                       # precision of image in nm
+reference = False                                   # do we want to plot reference points
+threshold = 100                                     # threshold for reference points
 
 
 #%% Generate Data
 locs_A, locs_B = generate_data.run_channel_generation(
-    path, deform, error, Noise, realdata, subset
+    path, deform, error, Noise, realdata, subset, pix_size
     )
 
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
@@ -111,46 +123,38 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
 #%% Minimum Entropy
 # Error Message
-output_text.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
+output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
                        , num_batches, batch_size, Batch_on)
 
+
+ch2_map = tf.Variable(ch2)
 # pre-aligning the data with MinEntropy
-ch2_map , mods0 = pre_alignment.align(ch1, ch2, mods=None, maxDistance=150)
-#ch2_map = tf.Variable(ch2)
+for _ in range(1):
+    ch2_map , mods0 = pre_alignment.align(ch1, ch2_map, mods=None, maxDistance=250)
+
+
 
 # training loop
-mods1 = Minimum_Entropy.initiate_model(models, learning_rates, optimizers)
-mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 50) 
+mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
+mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 150) 
 
-
-mods2 = Minimum_Entropy.initiate_model(models, learning_rates, optimizers)
-mods2, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods2, 50) 
-'''
-mods2 = Minimum_Entropy.initiate_model(Minimum_Entropy.Poly3Mod('polynomial'), 
-                                      1e-17, tf.optimizers.Adam)
-mods2, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods2, 50) 
-'''
 print('Optimization Done!')
 
 
 #%% Metrics
-plt.close('all')
-if realdata: N0 = ch1.shape[0]
-else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
-
-## Calculate Average Shift
-avg1, avg2 = output_text.precision_distr(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
-                                         ch2_map[:N0,:].numpy() , bin_width = 20)
-
-print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
+if hist_output:
+    if realdata: N0 = ch1.shape[0]
+    else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
+    
+    ## Calculate Average Shift ( hist_direct if ch1, ch2 are one-to-one ) 
+    avg1, avg2 = output_fn.hist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
+                                             ch2_map[:N0,:].numpy() , bin_width)
+    
+    print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
 
 #%% generating image
-if plot:
-    precision = 500                                       # precision of image in nm
-    reference = False                                   # do we want to plot reference points
-    threshold = 100                                     # threshold for reference points
-
+if plot_img:
     ## Channel Generation
     channel1, channel2, channel2m, bounds = generate_image.generate_channel(
         ch1, ch2, ch2_map, precision, max_deform)

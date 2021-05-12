@@ -5,11 +5,45 @@ Created on Wed Apr 14 15:40:25 2021
 @author: Mels
 """
 import tensorflow as tf
+import numpy as np
 
 import generate_neighbours
 
 
-#%% functions1
+#%%
+def initiate_model(models, learning_rates, optimizers):
+    '''
+    Initiate the MinEntropy Model consisting of an array of sub-models
+
+    Parameters
+    ----------
+    models : tf.keras.Layers.layer List (can also be single element)
+        A certain model described in this file.
+    learning_rates : float numpy array (can also be single element)
+        The learning rate per model.
+    optimizers : tf.optimizers List (can also be single element)
+        The optimizer to be used.
+
+    Returns
+    -------
+    mods : List
+        List containing the different initiated layers of the model.
+
+    '''
+    if not isinstance(models, list): models= [models]
+    if isinstance(learning_rates, list): learning_rates= np.array(learning_rates)
+    if not isinstance(learning_rates, np.ndarray): learning_rates= np.array([learning_rates])
+    if not isinstance(optimizers, list): optimizers= [optimizers]
+    
+    mods = []
+    for i in range(len(models)):
+        mods.append( Models(model=models[i], learning_rate = learning_rates[i], 
+                            opt=optimizers[i] ))
+        mods[i].var = mods[i].model.trainable_variables
+    return mods
+
+
+#%% functions
 def run_optimization(ch1, ch2, mods, maxDistance = 50):
     '''
     Parameters
@@ -34,11 +68,11 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     ## Training Loop
-    model_apply_grads = get_apply_grad_fn_dynamic()
+    model_apply_grads = get_apply_grad_fn()
     return model_apply_grads(ch1, ch2, nn1, nn2, mods) 
 
 
-def get_apply_grad_fn_dynamic():
+def get_apply_grad_fn():
     #@tf.function
     def apply_grad(ch1, ch2, nn1, nn2, mods):
         print('Optimizing...')
@@ -50,6 +84,35 @@ def get_apply_grad_fn_dynamic():
             if j==0: endloop=1
             endloop = endloop*mods[j].endloop
             mods[j].Training_loop(nn1, nn2)                         # the training loop
+            
+            i+=1     
+            if i%(50*n)==0: print('i = ',i//n)
+                      
+        print('completed in',i//n,' iterations')
+        
+        # delete this loop
+        for i in range(len(mods)):
+            print('Model: ', mods[i].model)
+            print('+ variables',mods[i].var)
+            print('\n')
+            ch2 = mods[i].model.transform_vec(ch2)
+            
+        return mods, ch2
+    return apply_grad
+
+
+def get_apply_grad_fn1():
+    #@tf.function
+    def apply_grad(ch1, ch2, nn1, nn2, mods):
+        print('Optimizing...')
+        n=len(mods)
+        i=0
+        endloop = False
+        while not endloop:
+            j = i%n                                         # for looping over the different models
+            if j==0: endloop=1
+            endloop = endloop*mods[j].endloop
+            mods[j].Training_loop(ch1, ch2)                         # the training loop
             
             i+=1     
             if i%(50*n)==0: print('i = ',i//n)
@@ -108,7 +171,7 @@ class Models():
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)
-            if self.rejections==100:                                 # convergence reached
+            if self.rejections==900:                                 # convergence reached
                 self.endloop = True
                 
                 
