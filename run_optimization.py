@@ -68,7 +68,7 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     ## Training Loop
-    model_apply_grads = get_apply_grad_fn()
+    model_apply_grads = get_apply_grad_fn1()
     return model_apply_grads(ch1, ch2, nn1, nn2, mods) 
 
 
@@ -78,12 +78,15 @@ def get_apply_grad_fn():
         print('Optimizing...')
         n=len(mods)
         i=0
-        endloop = False
-        while not endloop:
+        
+        endloop = np.empty(n, dtype = bool)
+        for d in range(n): endloop[d]=mods[d].endloop
+        
+        while not np.prod(endloop):
             j = i%n                                         # for looping over the different models
-            if j==0: endloop=1
-            endloop = endloop*mods[j].endloop
+            
             mods[j].Training_loop(nn1, nn2)                         # the training loop
+            endloop[j]=mods[j].endloop
             
             i+=1     
             if i%(50*n)==0: print('i = ',i//n)
@@ -107,12 +110,15 @@ def get_apply_grad_fn1():
         print('Optimizing...')
         n=len(mods)
         i=0
-        endloop = False
-        while not endloop:
+        
+        endloop = np.empty(n, dtype = bool)
+        for d in range(n): endloop[d]=mods[d].endloop
+        
+        while not np.prod(endloop):
             j = i%n                                         # for looping over the different models
-            if j==0: endloop=1
-            endloop = endloop*mods[j].endloop
-            mods[j].Training_loop(ch1, ch2)                         # the training loop
+            
+            mods[j].Training_loop(ch1, ch2)                 # the training loop
+            endloop[j]=mods[j].endloop
             
             i+=1     
             if i%(50*n)==0: print('i = ',i//n)
@@ -171,7 +177,7 @@ class Models():
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)
-            if self.rejections==900:                                 # convergence reached
+            if self.rejections==100:                                 # convergence reached
                 self.endloop = True
                 
                 

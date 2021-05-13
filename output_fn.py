@@ -49,8 +49,8 @@ def Info_batch(N, num_batches, batch_size, Batch_on=True):
         time.sleep(2)
 
 
-#%% calculating distribution 
-def hist_direct(ch1, ch2, ch2m, bin_width = 5):
+#%% Error distribution 
+def errorHist_direct(ch1, ch2, ch2m, bin_width = 5):
     '''
     Generates a histogram showing the distribution of distances between coupled points
 
@@ -98,7 +98,7 @@ def hist_direct(ch1, ch2, ch2m, bin_width = 5):
     return avg1, avg2
 
 
-def hist_neighbours(ch1, ch2, ch2m, bin_width = 5):
+def errorHist_neighbours(ch1, ch2, ch2m, bin_width = 5):
     '''
     Generates a histogram showing the distribution of distances between Neighbours
 
@@ -131,7 +131,7 @@ def hist_neighbours(ch1, ch2, ch2m, bin_width = 5):
     nbins2 = round(( np.max(dist2) - np.min(dist2) ) / bin_width ,0).astype(int)
     
     plt.figure()
-    plt.title('Distribution of distances between coupled Localizations')
+    plt.title('Distribution of distances between neighbouring Localizations')
     n1 = plt.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', bins=nbins1)
     n2 = plt.hist(dist2, label='Mapped', alpha=0.7, edgecolor='yellow', bins=nbins2)
     
@@ -148,6 +148,85 @@ def hist_neighbours(ch1, ch2, ch2m, bin_width = 5):
     
     return avg1, avg2
     
+
+#%% Error distribution over FOV 
+def errorFOV_direct(ch1, ch2, ch2m):
+    '''
+    Generates a FOV distribution of distances between coupled points
+
+    Parameters
+    ----------
+    ch1 : Nx2
+        The localizations of channel 1.
+    ch2 , ch2m : Nx2
+        The localizations of channel 2 and the mapped channel 2. The indexes 
+        of should be one-to-one with channel 1
+    bin_width : int, optional
+        The width of a bin. The default is 20.
+
+    Returns
+    -------
+    avg1, avg2 : float
+        The average distance between the channels
+
+    '''
+    r = np.sqrt(np.sum(ch1**2,1))
+    error1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
+    error2 = np.sqrt( np.sum( ( ch1 - ch2m )**2, axis = 1) )
+    
+    avg1 = np.average(error1)
+    avg2 = np.average(error2)
+    
+    plt.figure()
+    plt.title('Distribution of error between coupled pairs over radius')
+    plt.plot(r, error1, 'ro', label='Original error')
+    plt.plot(r, error2, 'bo', label='Mapped error')
+    plt.xlabel('Distance from center [nm]')
+    plt.ylabel('Error [nm]')
+    plt.legend()
+    
+    return avg1, avg2
+
+
+def errorFOV_neighbours(ch1, ch2, ch2m):
+    '''
+    Generates a FOV distribution of distances between neighbouring points
+
+    Parameters
+    ----------
+    ch1 : Nx2
+        The localizations of channel 1.
+    ch2 , ch2m : Nx2
+        The localizations of channel 2 and the mapped channel 2. The indexes 
+        of should be one-to-one with channel 1
+    bin_width : int, optional
+        The width of a bin. The default is 20.
+
+    Returns
+    -------
+    avg1, avg2 : float
+        The average distance between the channels
+
+    '''
+    r = np.sqrt(np.sum(ch1**2,1))
+    idx1 = KNN(ch1, ch2, 1)
+    idx2 = KNN(ch1, ch2m, 1)
+    error1 = np.sqrt( np.sum( ( ch1 - ch2[idx1,:][:,0,:] )**2, axis = 1) )
+    error2 = np.sqrt( np.sum( ( ch1 - ch2m[idx2,:][:,0,:] )**2, axis = 1) )
+    
+    avg1 = np.average(error1)
+    avg2 = np.average(error2)
+    
+    plt.figure()
+    plt.title('Distribution of error between neighbouring pairs over radius')
+    plt.plot(r, error1, 'ro', label='Original error')
+    plt.plot(r, error2, 'bo', label='Mapped error')
+    plt.xlabel('Distance from center [nm]')
+    plt.ylabel('Error [nm]')
+    plt.legend()
+    
+    return avg1, avg2
+
 
 #%% Polynomial translation
 def polynomial_translation(locs, M1, M2):

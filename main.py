@@ -16,7 +16,6 @@ Main.py
 |  |
 |  |- load_data.py              File used to load the example dataset given
 |
-|- pre_alignment.py             File containing MinEntr functions for pre-aligning
 |- run_optimization.py          File containing the training loops
 |- Minimum_Entropy.py           File containing the optimization classes 
    |- generate_neighbours.py    File containing all functions for generating neighbours
@@ -44,10 +43,9 @@ from setup_image import Deform
 
 # Modules
 import generate_data
-import pre_alignment
 import run_optimization
-import MinEntropy
-#import MinEntropy_direct as MinEntropy
+#import MinEntropy
+import MinEntropy_direct as MinEntropy
 import output_fn
 import generate_image
 
@@ -81,9 +79,9 @@ deform = Deform(shift, rotation, shear, scaling)
 
 
 #%% Optimization models and parameters
-models = [MinEntropy.ShiftMod('shift'), 
-          MinEntropy.RotationMod('rotation'),
-          MinEntropy.Poly3Mod('polynomial')
+models = [MinEntropy.ShiftMod(), 
+          MinEntropy.RotationMod(),
+          MinEntropy.Poly3Mod()
           ]
 optimizers = [tf.optimizers.Adagrad, 
               tf.optimizers.Adagrad, 
@@ -91,7 +89,7 @@ optimizers = [tf.optimizers.Adagrad,
               ]
 learning_rates = np.array([1, 
                            1e-2,
-                           1e-17
+                           1e-10
                            ])
 
 # Batches used in training 
@@ -104,7 +102,7 @@ num_batches = np.array([3,3], dtype = int)          # amount of [x1,x2] batches
 plt.close('all')
 
 hist_output = True                                  # do we want to have the histogram output
-bin_width = 2                                      # Bin width in nm
+bin_width = .5                                      # Bin width in nm
 
 plot_img = True                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
@@ -128,15 +126,9 @@ output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
 
 
 ch2_map = tf.Variable(ch2)
-# pre-aligning the data with MinEntropy
-for _ in range(1):
-    ch2_map , mods0 = pre_alignment.align(ch1, ch2_map, mods=None, maxDistance=250)
-
-
-
 # training loop
 mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
-mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 150) 
+mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 40) 
 
 print('Optimization Done!')
 
@@ -146,9 +138,12 @@ if hist_output:
     if realdata: N0 = ch1.shape[0]
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
-    ## Calculate Average Shift ( hist_direct if ch1, ch2 are one-to-one ) 
-    avg1, avg2 = output_fn.hist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
-                                             ch2_map[:N0,:].numpy() , bin_width)
+    ## Calculate Average Shift errorFOV_direct
+    avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    #avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    
+    _, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+    #_, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
     
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
