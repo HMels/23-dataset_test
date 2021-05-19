@@ -40,15 +40,13 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 # Classes
-from run_optimization import Models
 from setup_image import Deform
 
 # Modules
 import generate_data
-import pre_alignment
-import run_optimization
-import Minimum_Entropy
-import output_text
+from run_optimization import Models
+#import MinEntropy
+import MinEntropy_direct as MinEntropy
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -56,103 +54,127 @@ import output_text
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
-#%% Channel Generation
 
-def run_errorbar_algorithm(subset):
-    ## Dataset
-    realdata = False                                    # load real data or generate from real data
-    path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
-              'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
+
+#%% The opt and errorbar algorithm
+def run_errorbar_algorithm(locs, Mod, Noise=0., realdata=False, 
+                           shift=np.array([ 17  , 19 ])):
+    locs_A=locs[0]
+    locs_B=locs[1]
     
-    ## System Parameters
-    error = 10                                         # localization error in nm
-    Noise = 0.1                                         # percentage of noise
-    
-    ## Deformation of channel B
-    shift = np.array([ 17  , 19 ])                      # shift in nm
-    rotation = .05                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-    shear = np.array([0.0, 0.0])                      # shear
-    scaling = np.array([1.0,1.0 ])                    # scaling 
-    deform = Deform(shift, rotation, shear, scaling)
-    
-    
-    #%% Optimization models and parameters
-    models = [Minimum_Entropy.ShiftMod('shift'), 
-              Minimum_Entropy.RotationMod('rotation')#,
-              #Minimum_Entropy.Poly3Mod('polynomial')
-              ]
-    optimizers = [tf.optimizers.Adagrad, 
-                  tf.optimizers.Adagrad, 
-                  tf.optimizers.Adam
-                  ]
-    learning_rates = [1, 
-                      1e-2,
-                      1e-15
-                      ]
-    
-    # Batches used in training 
-    Batch_on = False
-    batch_size = 4000                                   # max amount of points per batch
-    num_batches = np.array([3,3], dtype = int)          # amount of [x1,x2] batches
-    
-    search_area = [35]
-    
-    #%% Generate Data
-    locs_A, locs_B = generate_data.run_channel_generation(
-        path, deform, error, Noise, realdata, subset
-        )
+    locs_B[:,0]-=shift[0]
+    locs_B[:,1]-=shift[1]
     
     ch1 = tf.Variable( locs_A, dtype = tf.float32)
     ch2 = tf.Variable( locs_B, dtype = tf.float32)
+
+    # training loop
+    mods=Models(model=Mod[0][0], learning_rate=Mod[1][0], 
+                            opt=Mod[2][0] )
     
-    
-    #%% Minimum Entropy
-    # Error Message
-    output_text.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
-                           , num_batches, batch_size, Batch_on)
-    
-    mods = []
-    for i in range(len(models)):
-        mods.append( Models(model=models[i], learning_rate = learning_rates[i], 
-                            opt=optimizers[i] ))
-        mods[i].var = mods[i].model.trainable_variables
-    
-    
-    # pre-aligning the data with MinEntropy
-    ch2_map , mods1 = pre_alignment.align(ch1, ch2, mods=None, maxDistance=150)
-    
-    ## training for decreasing search areas
-    for i in range(len(search_area)):
-        # training loop
-        mods, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods, search_area[i]) 
+    i=0 
+    while not mods.endloop:
         
-        #reset the training loop
-        if i != len(search_area):
-            print('Optimization ',i+1,'done!\n')
-            for mod in mods:
-                mod.endloop = False
-                mod.reset_learning_rate(mod.learning_rate/10)
-    print('Optimization Done!')
-
-    ## Calculate Average Shift
-    N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
-    avg_shift = output_text.avg_dist(ch1[:N0,:].numpy(), ch2[:N0,:].numpy())
-    avg_shift_map = output_text.avg_dist(ch1[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+        mods.Training_loop(ch1, ch2)                         # the training loop        
+        i+=1     
+                      
+    print('completed in',i,' iterations')
+    print('Model: ', mods.model)
+    print('+ variables',mods.var)
+    print('\n')
     
-    return avg_shift_map, avg_shift, N0
+    if realdata: N0 = ch1.shape[0]
+    else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
+    mapping = mods.model.trainable_variables[0].numpy()
+    
+    del locs_A, locs_B,ch1, ch2, mods,i
+    return mapping, N0
 
 
-#%%
-N = 50
-subset = np.linspace(0.1,1,N)                                        # percentage of original dataset
+#%% Error calc
+N=10
+Nit=1
+shift = np.array([ np.linspace(0,10,N), np.zeros(N)])
+path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
+          'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
+path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+subset = 1
+pixsize=1
+
 N0 = np.zeros(N)
-avg_shift_map = np.zeros(N)
-avg_shift = np.zeros(N)
+mapping = np.zeros([N,2])
+
+Def =  Deform()
+locs_A , _ = generate_data.run_channel_generation(
+            path, Def, error=0, Noise=0, realdata=False, subset=subset, pix_size=pixsize
+            )
 
 for i in range(N):
     print(' -------------------- iteration:',i,'--------------------')
-    avg_shift_map[i], avg_shift[i], N0[i] = run_errorbar_algorithm( subset[i] )
+    for j in range(Nit):
+        models = [MinEntropy.ShiftMod()]
+        optimizers = [tf.optimizers.Adagrad]
+        learning_rates = np.array([.1])
+        Mods = [models, learning_rates, optimizers]
+        
+        locs = [locs_A.copy(), locs_A.copy()]
+        
+        mapping_temp, N0_temp = run_errorbar_algorithm(locs, Mods, shift=shift[:,i])
+        mapping[i,:]+=mapping_temp/Nit
+        N0[i]+=N0_temp/Nit
+        
+        del Mods, models, optimizers, learning_rates, locs
     
-    
+
 #%%
-plt.plot(N0, avg_shift-avg_shift_map,'ro',ls='')
+plt.close('all')
+plt.title(('Beads dataset with ',locs_A.shape[0],'localizations'))
+plt.plot(shift[0,:], mapping[:,0],'ro',ls='',label='Calculated Shift')
+plt.plot(shift[0,:], np.abs(mapping[:,0]-shift[0,:]),'bx',label='Error', ls='')
+plt.plot(shift[0,:],shift[0,:],label='Actual Shift')
+plt.legend()
+plt.xlabel('Original Shift [nm]')
+plt.ylabel('Calculated Shift [nm]')
+plt.xlim([0,np.max(shift[0,:])])
+plt.ylim([0,np.max([np.max(shift[0,:]),np.max(mapping[:,0])])])
+plt.show()
+
+#%% Error calc
+N=40
+path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
+          'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
+subset = np.linspace(.1,1,N)
+
+N0 = np.zeros(N)
+mapping = np.zeros([N,2])
+shift=np.array([ 7  , 9 ])
+
+Def =  Deform()
+for i in range(N):
+    print(' -------------------- iteration:',i,'--------------------')    
+
+    locs_A , _ = generate_data.run_channel_generation(
+        path, Def, error=0, Noise=0, realdata=False, subset=subset[i], pix_size=100
+        )
+    
+    models = [MinEntropy.ShiftMod()]
+    optimizers = [tf.optimizers.Adagrad]
+    learning_rates = np.array([1.])
+    Mods = [models, learning_rates, optimizers]
+    
+    locs = [locs_A.copy(), locs_A.copy()]
+    
+    mapping[i,:], N0[i] = run_errorbar_algorithm(locs, Mods, shift=shift)
+    
+    del Mods, models, optimizers, learning_rates, locs, locs_A
+
+
+#%%
+plt.figure()
+plt.title('Error vs Number of Localizations')
+plt.plot(N0, np.sqrt(np.sum( (mapping-shift)**2 , axis = 1)),'ro',ls='')
+plt.xlabel('N')
+plt.ylabel('Error [nm]')
+plt.xlim(0)
+plt.ylim(0)
+plt.show()

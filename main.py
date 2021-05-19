@@ -44,8 +44,8 @@ from setup_image import Deform
 # Modules
 import generate_data
 import run_optimization
-#import MinEntropy
-import MinEntropy_direct as MinEntropy
+import MinEntropy
+#import MinEntropy_direct as MinEntropy
 import output_fn
 import generate_image
 
@@ -59,11 +59,11 @@ p.mkdir(exist_ok=True)
 #%% Channel Generation
 ## Dataset
 realdata = True                                    # load real data or generate from real data
-subset = 1                                         # percentage of original dataset
-pix_size = 1
+subset = .2                                         # percentage of original dataset
+pix_size = 100
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
 error = 0                                         # localization error in nm
@@ -71,8 +71,8 @@ Noise = 0.0                                         # percentage of noise
 
 ## Deformation of channel B
 max_deform = 150                                    # maximum amount of deform in nm
-shift = np.array([ 17  , 19 ])                      # shift in nm
-rotation = .2                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+shift = np.array([ 17  , 9 ])                      # shift in nm
+rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
 shear = np.array([0.0, 0.0])                      # shear
 scaling = np.array([1.0,1.0 ])                    # scaling 
 deform = Deform(shift, rotation, shear, scaling)
@@ -89,22 +89,17 @@ optimizers = [tf.optimizers.Adagrad,
               ]
 learning_rates = np.array([1, 
                            1e-2,
-                           1e-10
+                           1e-11
                            ])
-
-# Batches used in training 
-Batch_on = False
-batch_size = 4000                                   # max amount of points per batch
-num_batches = np.array([3,3], dtype = int)          # amount of [x1,x2] batches
 
 
 #%% output params
 plt.close('all')
 
 hist_output = True                                  # do we want to have the histogram output
-bin_width = .5                                      # Bin width in nm
+bin_width = 2                                      # Bin width in nm
 
-plot_img = True                                     # do we want to generate a plot
+plot_img = False                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
 threshold = 100                                     # threshold for reference points
@@ -121,15 +116,13 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
 #%% Minimum Entropy
 # Error Message
-output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]])
-                       , num_batches, batch_size, Batch_on)
+output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 
 
 ch2_map = tf.Variable(ch2)
 # training loop
 mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
-mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 40) 
-
+mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 30) 
 print('Optimization Done!')
 
 
@@ -139,11 +132,11 @@ if hist_output:
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
     ## Calculate Average Shift errorFOV_direct
-    avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
-    #avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    #avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
     
-    _, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
-    #_, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+    #_, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+    _, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
     
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 

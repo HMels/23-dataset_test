@@ -37,7 +37,7 @@ def initiate_model(models, learning_rates, optimizers):
     
     mods = []
     for i in range(len(models)):
-        mods.append( Models(model=models[i], learning_rate = learning_rates[i], 
+        mods.append( Models(model=models[i], learning_rate=learning_rates[i], 
                             opt=optimizers[i] ))
         mods[i].var = mods[i].model.trainable_variables
     return mods
@@ -68,7 +68,7 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     ## Training Loop
-    model_apply_grads = get_apply_grad_fn1()
+    model_apply_grads = get_apply_grad_fn()
     return model_apply_grads(ch1, ch2, nn1, nn2, mods) 
 
 
@@ -170,14 +170,14 @@ class Models():
         if y1<self.entropy:
             self.Reject = False
             self.rejections = 0
-            self.reset_learning_rate(self.learning_rate*1.2)
+            #self.reset_learning_rate(self.learning_rate*1.05)
             self.endloop = False
         else:
             self.Reject = True
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)
-            if self.rejections==100:                                 # convergence reached
+            if self.rejections==10:                                 # convergence reached
                 self.endloop = True
                 
                 

@@ -33,10 +33,10 @@ class Deform():
     '''
     
     def __init__(self, shift=None, rotation=None, shear=None, scaling=None):
-        self.shift = shift if shift is not None else {}
-        self.rotation = rotation if rotation is not None else {}
-        self.shear = shear if shear is not None else {}
-        self.scaling = scaling if scaling is not None else {}
+        self.shift = shift if shift is not None else np.array([0.,0.])
+        self.rotation = rotation if rotation is not None else 0.
+        self.shear = shear if shear is not None else np.array([0.,0.])
+        self.scaling = scaling if scaling is not None else np.array([1.,1.])
         
         
     def deform(self, locs):
