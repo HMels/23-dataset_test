@@ -68,7 +68,7 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
     nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     ## Training Loop
-    model_apply_grads = get_apply_grad_fn()
+    model_apply_grads = get_apply_grad_fn1()
     return model_apply_grads(ch1, ch2, nn1, nn2, mods) 
 
 

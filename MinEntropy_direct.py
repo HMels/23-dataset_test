@@ -23,7 +23,8 @@ import tensorflow as tf
 
 
 #%% functions
-@tf.autograph.experimental.do_not_convert
+#@tf.autograph.experimental.do_not_convert
+@tf.function
 def Rel_entropy(ch1, ch2):
     return tf.reduce_sum(tf.square(ch1-ch2))
 
@@ -59,7 +60,8 @@ class Poly3Mod(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_vec(self, x_input):
         y = tf.stack([
             tf.concat([self.M1[0,0]*tf.ones([x_input.shape[0],1]), 
@@ -86,7 +88,8 @@ class Poly3Mod(tf.keras.Model):
         return tf.reduce_sum(y, axis = 1)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_mat(self, x_input):
         y = tf.stack([
             tf.concat([self.M1[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
@@ -144,7 +147,8 @@ class Poly2Mod(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_vec(self, x_input):
         y = tf.stack([
             tf.concat([self.M1[0,0]*tf.ones([x_input.shape[0],1]), 
@@ -161,7 +165,8 @@ class Poly2Mod(tf.keras.Model):
         return tf.reduce_sum(y, axis = 1)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_mat(self, x_input):
         y = tf.stack([
             tf.concat([self.M1[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
@@ -200,12 +205,14 @@ class ShiftMod(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_vec(self, x_input):
         return x_input + self.d[None]
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_mat(self, x_input):
         return x_input + self.d[None,None]
     
@@ -232,7 +239,8 @@ class RotationMod(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_vec(self, x_input):
         cos = tf.cos(self.theta * 0.0175)
         sin = tf.sin(self.theta * 0.0175)
@@ -243,7 +251,8 @@ class RotationMod(tf.keras.Model):
         return r
     
     
-    @tf.autograph.experimental.do_not_convert
+    #@tf.autograph.experimental.do_not_convert
+    @tf.function
     def transform_mat(self, x_input):
         cos = tf.cos(self.theta * 0.0175)
         sin = tf.sin(self.theta * 0.0175)

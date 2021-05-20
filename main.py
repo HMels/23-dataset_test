@@ -44,8 +44,8 @@ from setup_image import Deform
 # Modules
 import generate_data
 import run_optimization
-import MinEntropy
-#import MinEntropy_direct as MinEntropy
+#import MinEntropy
+import MinEntropy_direct as MinEntropy
 import output_fn
 import generate_image
 
@@ -59,11 +59,11 @@ p.mkdir(exist_ok=True)
 #%% Channel Generation
 ## Dataset
 realdata = True                                    # load real data or generate from real data
-subset = .2                                         # percentage of original dataset
-pix_size = 100
+subset = 1                                         # percentage of original dataset
+pix_size = 1
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
 error = 0                                         # localization error in nm
@@ -132,11 +132,11 @@ if hist_output:
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
     ## Calculate Average Shift errorFOV_direct
-    #avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
-    avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
+    #avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
     
-    #_, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
-    _, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+    _, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
+    #_, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
     
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
