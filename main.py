@@ -81,7 +81,7 @@ deform = Deform(shift, rotation, shear, scaling)
 #%% Optimization models and parameters
 models = [MinEntropy.ShiftMod(), 
           MinEntropy.RotationMod(),
-          MinEntropy.Poly3Mod()
+          #MinEntropy.Poly3Mod()
           ]
 optimizers = [tf.optimizers.Adagrad, 
               tf.optimizers.Adagrad, 
@@ -97,7 +97,7 @@ learning_rates = np.array([1,
 plt.close('all')
 
 hist_output = True                                  # do we want to have the histogram output
-bin_width = 2                                      # Bin width in nm
+bin_width = .5                                      # Bin width in nm
 
 plot_img = False                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
