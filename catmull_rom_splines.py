@@ -21,8 +21,8 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Create ControlPoints
 gridsize = 50               # nm, size between controlpoints
 
-x1_grid = tf.range(tf.reduce_min(ch2[:,0]), tf.reduce_max(ch2[:,0])+gridsize, gridsize)
-x2_grid = tf.range(tf.reduce_min(ch2[:,1]), tf.reduce_max(ch2[:,1])+gridsize, gridsize)
+x1_grid = tf.range(tf.reduce_min(ch2[:,0])-gridsize, tf.reduce_max(ch2[:,0])+gridsize, gridsize)
+x2_grid = tf.range(tf.reduce_min(ch2[:,1])-gridsize, tf.reduce_max(ch2[:,1])+gridsize, gridsize)
 CP_locs = tf.stack(tf.meshgrid(x1_grid, x2_grid  ), axis=2) # control points locations
 CP_idx = tf.cast(tf.stack([( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize, 
                            ( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize], axis=1),
@@ -100,8 +100,8 @@ class CatmullRomSplines(tf.keras.Model):
             tf.pow(x,3)*tf.pow(y,1)*self.Sum_A(3,1),
             tf.pow(x,3)*tf.pow(y,2)*self.Sum_A(3,2),
             tf.pow(x,3)*tf.pow(y,3)*self.Sum_A(3,3),
-            ]) # fix axis
-        return tf.reduce_sum(M_matrix)
+            ], axis=2)
+        return tf.reduce_sum(M_matrix, axis=2)
         
     
     
@@ -128,8 +128,8 @@ class CatmullRomSplines(tf.keras.Model):
             self.A[a,3]*self.A[b,1]*self.q31,
             self.A[a,3]*self.A[b,2]*self.q32,
             self.A[a,3]*self.A[b,3]*self.q33
-            ]) # fix axis 
-        return tf.reduce_sum(A_matrix)
+            ], axis=2)
+        return tf.reduce_sum(A_matrix, axis=2)
     
     
     def update_splines(self):
