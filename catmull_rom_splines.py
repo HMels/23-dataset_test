@@ -21,12 +21,14 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Create ControlPoints
 gridsize = 50               # nm, size between controlpoints
 
-x1_grid = tf.range(tf.reduce_min(ch2[:,0])-gridsize, tf.reduce_max(ch2[:,0])+gridsize, gridsize)
-x2_grid = tf.range(tf.reduce_min(ch2[:,1])-gridsize, tf.reduce_max(ch2[:,1])+gridsize, gridsize)
+x1_grid = tf.range(tf.reduce_min(ch2[:,0])-gridsize, 
+                   tf.reduce_max(ch2[:,0])+gridsize, gridsize)
+x2_grid = tf.range(tf.reduce_min(ch2[:,1])-gridsize, 
+                   tf.reduce_max(ch2[:,1])+gridsize, gridsize)
 CP_locs = tf.stack(tf.meshgrid(x1_grid, x2_grid  ), axis=2) # control points locations
-CP_idx = tf.cast(tf.stack([( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize, 
-                           ( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize], axis=1),
-                 dtype=tf.int32) # the index of which CP the points in ch2 belong to
+CP_idx = tf.cast(tf.stack([( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize+1, 
+                           ( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize+1], axis=1),
+                 dtype=tf.int32) 
 
 
 
@@ -74,7 +76,7 @@ class CatmullRomSplines(tf.keras.Model):
     @tf.function
     def transform_vec(self, x_input):
         r = x_input - self.q1
-        return self.Spline_Map(r[:,0], r[:,1])
+        return self.Spline_Map(r[:,0][:,None], r[:,1][:,None])
     
     
     #@tf.autograph.experimental.do_not_convert
@@ -109,29 +111,30 @@ class CatmullRomSplines(tf.keras.Model):
     @tf.function
     def Sum_A(self,a,b):
         A_matrix = tf.stack([
-            self.A[a,0]*self.A[b,0]*self.q00,
-            self.A[a,0]*self.A[b,1]*self.q01,
-            self.A[a,0]*self.A[b,2]*self.q02,
-            self.A[a,0]*self.A[b,3]*self.q03,
+            self.A[a,3]*self.A[b,3]*self.q00,
+            self.A[a,3]*self.A[b,2]*self.q01,
+            self.A[a,3]*self.A[b,1]*self.q02,
+            self.A[a,3]*self.A[b,0]*self.q03,
             
-            self.A[a,1]*self.A[b,0]*self.q10,
-            self.A[a,1]*self.A[b,1]*self.q11,
-            self.A[a,1]*self.A[b,2]*self.q12,
-            self.A[a,1]*self.A[b,3]*self.q13,
+            self.A[a,2]*self.A[b,3]*self.q10,
+            self.A[a,2]*self.A[b,2]*self.q11,
+            self.A[a,2]*self.A[b,1]*self.q12,
+            self.A[a,2]*self.A[b,0]*self.q13,
             
-            self.A[a,2]*self.A[b,0]*self.q20,
-            self.A[a,2]*self.A[b,1]*self.q21,
-            self.A[a,2]*self.A[b,2]*self.q22,
-            self.A[a,2]*self.A[b,3]*self.q23,
+            self.A[a,1]*self.A[b,3]*self.q20,
+            self.A[a,1]*self.A[b,2]*self.q21,
+            self.A[a,1]*self.A[b,1]*self.q22,
+            self.A[a,1]*self.A[b,0]*self.q23,
             
-            self.A[a,3]*self.A[b,0]*self.q30,
-            self.A[a,3]*self.A[b,1]*self.q31,
-            self.A[a,3]*self.A[b,2]*self.q32,
-            self.A[a,3]*self.A[b,3]*self.q33
+            self.A[a,0]*self.A[b,3]*self.q30,
+            self.A[a,0]*self.A[b,2]*self.q31,
+            self.A[a,0]*self.A[b,1]*self.q32,
+            self.A[a,0]*self.A[b,0]*self.q33
             ], axis=2)
         return tf.reduce_sum(A_matrix, axis=2)
     
     
+    @tf.function
     def update_splines(self):
         self.q00 = tf.gather_nd(self.CP_locs, self.CP_idx)  # q_k
         self.q01 = tf.gather_nd(self.CP_locs, self.CP_idx)  # q_k
