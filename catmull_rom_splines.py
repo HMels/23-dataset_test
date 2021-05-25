@@ -21,11 +21,11 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Create ControlPoints
 gridsize = 50               # nm, size between controlpoints
 
-x1_grid = tf.range(tf.reduce_min(ch2[:,0])-gridsize, 
-                   tf.reduce_max(ch2[:,0])+gridsize, gridsize)
-x2_grid = tf.range(tf.reduce_min(ch2[:,1])-gridsize, 
-                   tf.reduce_max(ch2[:,1])+gridsize, gridsize)
-CP_locs = tf.stack(tf.meshgrid(x1_grid, x2_grid  ), axis=2) # control points locations
+x1_grid = tf.range(tf.reduce_min(ch2[:,0])-1.5*gridsize,
+                   tf.reduce_max(ch2[:,0])+2*gridsize, gridsize)
+x2_grid = tf.range(tf.reduce_min(ch2[:,1])-1.5*gridsize, 
+                   tf.reduce_max(ch2[:,1])+2*gridsize, gridsize)
+CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
 CP_idx = tf.cast(tf.stack([( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize+1, 
                            ( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize+1], axis=1),
                  dtype=tf.int32) 
@@ -37,6 +37,7 @@ CP_corners = tf.gather_nd(CP_locs,CP_idx)
 plt.plot(CP_corners[:,0],CP_corners[:,1], 'x', label='Control Points')
 plt.plot(ch2[:,0], ch2[:,1], 'o', label='Localizations')
 plt.legend()
+
 #%% CatmullRomSplines
 class CatmullRomSplines(tf.keras.Model):
     '''

@@ -38,7 +38,6 @@ plt.plot(CP_corners[:,0],CP_corners[:,1], 'x', label='Control Points')
 plt.plot(ch2[:,0], ch2[:,1], 'o', label='Localizations')
 plt.legend()
 
-x_input = ch2 / gridsize
 
 #%% Sum A
 def Sum_A(a,b, W):
@@ -105,8 +104,8 @@ def Splines(CP_locs, CP_idx):
 gridsize = 1
 x_input_original = tf.Variable([[.5, 1.5], [1.5, 0.5], [1.5, 1.5], [0.5, 0.5],
                        [3.5,4.5], [0.5,4.5], [0.5,3.5], [3.5,1.5]], dtype=tf.float32)
-
-x_input = x_input_original / gridsize
+'''
+x_input = ch2 / gridsize
 x1_grid = tf.range(tf.reduce_min(tf.floor(x_input[:,0])) -1,
                    tf.reduce_max(tf.floor(x_input[:,0])) +3, 1)
 x2_grid =  tf.range(tf.reduce_min(tf.floor(x_input[:,1]))-1,
@@ -116,7 +115,7 @@ CP_idx = tf.cast(tf.stack(
     [( x_input[:,0]-tf.reduce_min(tf.floor(x_input[:,0]))+1)//1 , 
      ( x_input[:,1]-tf.reduce_min(tf.floor(x_input[:,1]))+1)//1 ], 
     axis=1), dtype=tf.int32)
-'''
+
 W = Splines(CP_locs, CP_idx)
 
 r = x_input-W[5]
@@ -157,4 +156,7 @@ for i in range(1,CP_locs.shape[0]):
     plt.plot(CP_locs[i,:,1]*gridsize, CP_locs[i,:,0]*gridsize, 'y+')
 plt.legend()
 print(x_mapped*gridsize)
-print(x_input_original)
+print(x_input*gridsize)
+
+plt.figure()
+plt.plot(x_mapped[:,1]-x_input[:,1], x_mapped[:,0]-x_input[:,0], 'x')

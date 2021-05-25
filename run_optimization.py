@@ -8,6 +8,7 @@ import tensorflow as tf
 import numpy as np
 
 import generate_neighbours
+import MinEntropy_direct as MinEntropy
 
 
 #%%
@@ -41,6 +42,50 @@ def initiate_model(models, learning_rates, optimizers):
                             opt=optimizers[i] ))
         mods[i].var = mods[i].model.trainable_variables
     return mods
+
+
+#%% Splines
+def run_optimization_splines(ch1, ch2, gridsize = 50):
+    x1_grid = tf.range(tf.reduce_min(ch2[:,0])-1.5*gridsize,
+                       tf.reduce_max(ch2[:,0])+2*gridsize, gridsize)
+    x2_grid = tf.range(tf.reduce_min(ch2[:,1])-1.5*gridsize, 
+                       tf.reduce_max(ch2[:,1])+2*gridsize, gridsize)
+    CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
+    CP_idx = tf.cast(tf.stack([( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize+1, 
+                               ( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize+1], axis=1),
+                     dtype=tf.int32) 
+    
+    mods = [Models(model=MinEntropy.CatmullRomSplines(CP_locs, CP_idx), 
+                  learning_rate=1, opt=tf.optimizers.Adagrad)]
+    
+    model_apply_grads = get_apply_grad_fn_splines()
+    
+    return model_apply_grads(ch1, ch2, mods)
+    
+    
+def get_apply_grad_fn_splines():
+    #@tf.function
+    def apply_grad(ch1, ch2, mods):
+        print('Optimizing...')
+        n=len(mods)
+        i=0
+        
+        endloop = np.empty(n, dtype = bool)
+        for d in range(n): endloop[d]=mods[d].endloop
+        
+        while not np.prod(endloop):
+            j = i%n                                         # for looping over the different models
+            
+            mods[j].Training_loop(ch1, ch2)                 # the training loop
+            endloop[j]=mods[j].endloop
+            
+            i+=1     
+            if i%(50*n)==0: print('i = ',i//n)
+                      
+        print('completed in',i//n,' iterations')
+            
+        return mods, ch2
+    return apply_grad
 
 
 #%% functions

@@ -121,8 +121,10 @@ output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 
 ch2_map = tf.Variable(ch2)
 # training loop
-mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
-mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 30) 
+#mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
+#mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 30) 
+
+mods2, ch2_map = run_optimization.run_optimization_splines(ch1, ch2_map, gridsize = 50)
 print('Optimization Done!')
 
 
