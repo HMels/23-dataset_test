@@ -44,8 +44,6 @@ from setup_image import Deform
 # Modules
 import generate_data
 import run_optimization
-#import MinEntropy
-import MinEntropy_direct as MinEntropy
 import output_fn
 import generate_image
 
@@ -78,27 +76,14 @@ scaling = np.array([1.0,1.0 ])                    # scaling
 deform = Deform(shift, rotation, shear, scaling)
 
 
-#%% Optimization models and parameters
-models = [MinEntropy.ShiftMod(), 
-          MinEntropy.RotationMod(),
-          #MinEntropy.Poly3Mod()
-          ]
-optimizers = [tf.optimizers.Adagrad, 
-              tf.optimizers.Adagrad, 
-              tf.optimizers.Adam
-              ]
-learning_rates = np.array([1, 
-                           1e-2,
-                           1e-11
-                           ])
-
-
 #%% output params
 plt.close('all')
 
+# Histogram
 hist_output = True                                  # do we want to have the histogram output
 bin_width = .5                                      # Bin width in nm
 
+# The Image
 plot_img = False                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
@@ -109,7 +94,6 @@ threshold = 100                                     # threshold for reference po
 locs_A, locs_B = generate_data.run_channel_generation(
     path, deform, error, Noise, realdata, subset, pix_size
     )
-
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
@@ -117,14 +101,14 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Minimum Entropy
 # Error Message
 output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
-
-
 ch2_map = tf.Variable(ch2)
-# training loop
-#mods1 = run_optimization.initiate_model(models, learning_rates, optimizers)
-#mods1, ch2_map = run_optimization.run_optimization(ch1, ch2_map, mods1, 30) 
 
-mods2, ch2_map = run_optimization.run_optimization_splines(ch1, ch2_map, gridsize = 50)
+# training loop ShiftRotMod
+mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, 30) 
+
+# training loop CatmullRomSplines
+#mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize = 50)
+
 print('Optimization Done!')
 
 

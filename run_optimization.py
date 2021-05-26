@@ -5,47 +5,30 @@ Created on Wed Apr 14 15:40:25 2021
 @author: Mels
 """
 import tensorflow as tf
-import numpy as np
 
 import generate_neighbours
 import MinEntropy_direct as MinEntropy
-
-
-#%%
-def initiate_model(models, learning_rates, optimizers):
-    '''
-    Initiate the MinEntropy Model consisting of an array of sub-models
-
-    Parameters
-    ----------
-    models : tf.keras.Layers.layer List (can also be single element)
-        A certain model described in this file.
-    learning_rates : float numpy array (can also be single element)
-        The learning rate per model.
-    optimizers : tf.optimizers List (can also be single element)
-        The optimizer to be used.
-
-    Returns
-    -------
-    mods : List
-        List containing the different initiated layers of the model.
-
-    '''
-    if not isinstance(models, list): models= [models]
-    if isinstance(learning_rates, list): learning_rates= np.array(learning_rates)
-    if not isinstance(learning_rates, np.ndarray): learning_rates= np.array([learning_rates])
-    if not isinstance(optimizers, list): optimizers= [optimizers]
-    
-    mods = []
-    for i in range(len(models)):
-        mods.append( Models(model=models[i], learning_rate=learning_rates[i], 
-                            opt=optimizers[i] ))
-        mods[i].var = mods[i].model.trainable_variables
-    return mods
+#import MinEntropy
 
 
 #%% Splines
-def run_optimization_splines(ch1, ch2, gridsize = 50):
+def run_optimization_Splines(ch1, ch2, gridsize = 50):
+    '''
+    Parameters
+    ----------
+    ch1 ,ch2 : Nx2 Tensor
+        Tensor containing the localizations of their channels.
+    gridsize : float32, optional
+        The size of the grid splines
+
+    Returns
+    -------
+    mods : Models() Class
+        Class containing the information and functions of the optimization models.
+    ch2 : Nx2 float Tensor
+        Mapped version of ch2
+
+    '''    
     x1_grid = tf.range(tf.reduce_min(ch2[:,0])-1.5*gridsize,
                        tf.reduce_max(ch2[:,0])+2*gridsize, gridsize)
     x2_grid = tf.range(tf.reduce_min(ch2[:,1])-1.5*gridsize, 
@@ -55,48 +38,24 @@ def run_optimization_splines(ch1, ch2, gridsize = 50):
                                ( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize+1], axis=1),
                      dtype=tf.int32) 
     
-    mods = [Models(model=MinEntropy.CatmullRomSplines(CP_locs, CP_idx), 
-                  learning_rate=1, opt=tf.optimizers.Adagrad)]
+    # The Model
+    mods = Models(model=MinEntropy.CatmullRomSplines(CP_locs, CP_idx), 
+                  learning_rate=1, opt=tf.optimizers.Adagrad)
     
-    model_apply_grads = get_apply_grad_fn_splines()
-    
-    return model_apply_grads(ch1, ch2, mods)
-    
-    
-def get_apply_grad_fn_splines():
-    #@tf.function
-    def apply_grad(ch1, ch2, mods):
-        print('Optimizing...')
-        n=len(mods)
-        i=0
-        
-        endloop = np.empty(n, dtype = bool)
-        for d in range(n): endloop[d]=mods[d].endloop
-        
-        while not np.prod(endloop):
-            j = i%n                                         # for looping over the different models
-            
-            mods[j].Training_loop(ch1, ch2)                 # the training loop
-            endloop[j]=mods[j].endloop
-            
-            i+=1     
-            if i%(50*n)==0: print('i = ',i//n)
-                      
-        print('completed in',i//n,' iterations')
-            
-        return mods, ch2
-    return apply_grad
+    # The Training Function
+    model_apply_grads = get_apply_grad_fn()
+    return model_apply_grads(ch1, ch2, mods, nn1=None, nn2=None)
 
 
-#%% functions
-def run_optimization(ch1, ch2, mods, maxDistance = 50):
+#%% ShiftRot
+def run_optimization_ShiftRot(ch1, ch2, maxDistance = 50):
     '''
     Parameters
     ----------
     ch1 ,ch2 : Nx2 Tensor
         Tensor containing the localizations of their channels.
-    mods : Models() Class
-        Class containing the information and functions of the optimization models.
+    maxDistance : float32, optional
+        The distance in which the Nearest Neighbours will be searched
 
     Returns
     -------
@@ -107,79 +66,66 @@ def run_optimization(ch1, ch2, mods, maxDistance = 50):
 
     '''
     # Generate Neighbours 
-    neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-    ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None)
-    nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
-    nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
+    #neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
+    #ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None)
+    #nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
+    #nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
+    
+    # The Model
+    mods = Models(model=MinEntropy.ShiftRotMod(), 
+                  learning_rate=1, opt=tf.optimizers.Adagrad)
     
     ## Training Loop
-    model_apply_grads = get_apply_grad_fn1()
-    return model_apply_grads(ch1, ch2, nn1, nn2, mods) 
+    model_apply_grads = get_apply_grad_fn()
+    return model_apply_grads(ch1, ch2, mods, nn1=None, nn2=None)
 
 
+#%% apply_grad function
 def get_apply_grad_fn():
     #@tf.function
-    def apply_grad(ch1, ch2, nn1, nn2, mods):
+    def apply_grad(ch1, ch2, mods, nn1=None, nn2=None):
+        '''
+
+        Parameters
+        ----------
+        ch1 ,ch2 : Nx2 Tensor
+            Tensor containing the localizations of their channels.
+        mods : Model()
+            The Model which will be optimized.
+        nn1 , nn2 : Nx2xM, optional
+            Tensor containing the localizations of their channesl and
+            their neighbours. The default is None.
+
+        Returns
+        -------
+        mods : Models() Class
+            Class containing the information and functions of the optimization models.
+        ch2 : Nx2 float Tensor
+            Mapped version of ch2
+
+        '''
         print('Optimizing...')
-        n=len(mods)
+        
         i=0
-        
-        endloop = np.empty(n, dtype = bool)
-        for d in range(n): endloop[d]=mods[d].endloop
-        
-        while not np.prod(endloop):
-            j = i%n                                         # for looping over the different models
-            
-            mods[j].Training_loop(nn1, nn2)                         # the training loop
-            endloop[j]=mods[j].endloop
-            
-            i+=1     
-            if i%(50*n)==0: print('i = ',i//n)
-                      
-        print('completed in',i//n,' iterations')
-        
-        # delete this loop
-        for i in range(len(mods)):
-            print('Model: ', mods[i].model)
-            print('+ variables',mods[i].var)
-            print('\n')
-            ch2 = mods[i].model.transform_vec(ch2)
+        if nn1==None and nn2==None:
+            while not mods.endloop:
+                mods.Training_loop(ch1, ch2)                 # the training loop
+                i+=1     
+                if i%50==0: print('i = ',i)
+                
+        elif nn1!=None and nn2!=None:
+            while not mods.endloop:
+                mods.Training_loop(nn1, nn2)                 # the training loop
+                i+=1     
+                if i%50==0: print('i = ',i)
+                
+                
+        print('completed in',i,' iterations')
+        ch2 = mods.model.transform_vec(ch2)
             
         return mods, ch2
     return apply_grad
 
-
-def get_apply_grad_fn1():
-    #@tf.function
-    def apply_grad(ch1, ch2, nn1, nn2, mods):
-        print('Optimizing...')
-        n=len(mods)
-        i=0
-        
-        endloop = np.empty(n, dtype = bool)
-        for d in range(n): endloop[d]=mods[d].endloop
-        
-        while not np.prod(endloop):
-            j = i%n                                         # for looping over the different models
-            
-            mods[j].Training_loop(ch1, ch2)                 # the training loop
-            endloop[j]=mods[j].endloop
-            
-            i+=1     
-            if i%(50*n)==0: print('i = ',i//n)
-                      
-        print('completed in',i//n,' iterations')
-        
-        # delete this loop
-        for i in range(len(mods)):
-            print('Model: ', mods[i].model)
-            print('+ variables',mods[i].var)
-            print('\n')
-            ch2 = mods[i].model.transform_vec(ch2)
-            
-        return mods, ch2
-    return apply_grad
-    
 
 #%% 
 class Models():
