@@ -84,7 +84,7 @@ hist_output = True                                  # do we want to have the his
 bin_width = .5                                      # Bin width in nm
 
 # The Image
-plot_img = False                                     # do we want to generate a plot
+plot_img = True                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
 threshold = 100                                     # threshold for reference points
@@ -107,7 +107,7 @@ ch2_map = tf.Variable(ch2)
 mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, 30) 
 
 # training loop CatmullRomSplines
-#mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize = 50)
+mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize = 20)
 
 print('Optimization Done!')
 

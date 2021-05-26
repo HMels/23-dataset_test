@@ -18,27 +18,6 @@ ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
 
-#%% Create ControlPoints
-gridsize = 50               # nm, size between controlpoints
-
-x1_grid = tf.range(tf.reduce_min(ch2[:,0])-1.5*gridsize,
-                   tf.reduce_max(ch2[:,0])+2*gridsize, gridsize)
-x2_grid = tf.range(tf.reduce_min(ch2[:,1])-1.5*gridsize, 
-                   tf.reduce_max(ch2[:,1])+2*gridsize, gridsize)
-CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
-CP_idx = tf.cast(tf.stack([( ch2[:,0]-tf.reduce_min(ch2[:,0]) )//gridsize+1, 
-                           ( ch2[:,1]-tf.reduce_min(ch2[:,1]) )//gridsize+1], axis=1),
-                 dtype=tf.int32) 
-
-
-
-plt.close('all')
-CP_corners = tf.gather_nd(CP_locs,CP_idx)
-plt.plot(CP_corners[:,0],CP_corners[:,1], 'x', label='Control Points')
-plt.plot(ch2[:,0], ch2[:,1], 'o', label='Localizations')
-plt.legend()
-
-
 #%% Sum A
 def Sum_A(a,b, W):
     A = tf.Variable([
@@ -47,7 +26,14 @@ def Sum_A(a,b, W):
     [-.5, 0, .5, 0],
     [0, 1, 0, 0]
     ], trainable=False, dtype=tf.float32) 
-    
+    '''
+    A = tf.Variable([
+        [2,1,-2, 1],
+        [-3,-2,3,-1],
+        [0, 1,0 , 0],
+        [1, 0, 0, 0]  
+        ], trainable=False, dtype=tf.float32) 
+    '''
     A_matrix = tf.stack([
         A[a,0]*A[b,0]*W[0],
         A[a,0]*A[b,1]*W[1],
@@ -101,11 +87,18 @@ def Splines(CP_locs, CP_idx):
 
 #%% CatmullRomSplines
 '''
+ch1copy = tf.stack([ch2[:,0] + 5, ch2[:,1]+2], axis=1)
+gridsize = 50               # nm, size between controlpoints
+x_input = tf.Variable(ch2 / gridsize)
+
+'''
 gridsize = 1
 x_input_original = tf.Variable([[.5, 1.5], [1.5, 0.5], [1.5, 1.5], [0.5, 0.5],
                        [3.5,4.5], [0.5,4.5], [0.5,3.5], [3.5,1.5]], dtype=tf.float32)
-'''
-x_input = ch2 / gridsize
+x_input = tf.Variable(x_input_original)
+ch1copy = tf.Variable(tf.stack([x_input_original[:,0], x_input_original[:,1]], axis=1))
+
+#'''
 x1_grid = tf.range(tf.reduce_min(tf.floor(x_input[:,0])) -1,
                    tf.reduce_max(tf.floor(x_input[:,0])) +3, 1)
 x2_grid =  tf.range(tf.reduce_min(tf.floor(x_input[:,1]))-1,
@@ -116,11 +109,19 @@ CP_idx = tf.cast(tf.stack(
      ( x_input[:,1]-tf.reduce_min(tf.floor(x_input[:,1]))+1)//1 ], 
     axis=1), dtype=tf.int32)
 
-W = Splines(CP_locs, CP_idx)
-
-r = x_input-W[5]
+#W = Splines(CP_locs, CP_idx)
+#r = tf.Variable(x_input-W[5])
+r = x_input%1
 x = r[:,0][:,None]
 y = r[:,1][:,None]
+
+CP_locs1_numpy = CP_locs.numpy()
+CP_locs1_numpy[:,:,0]*= 1
+CP_locs1_numpy[:,:,1]*= 1
+CP_locs1_numpy[:,:,0]-= 0.4
+CP_locs1_numpy[:,:,1]-= 0
+CP_locs1 = tf.Variable(CP_locs1_numpy)
+W = Splines(CP_locs1, CP_idx)
 
 M_matrix = tf.stack([
    tf.pow(x,3)*tf.pow(y,3)*Sum_A(0,0, W),
@@ -144,19 +145,23 @@ M_matrix = tf.stack([
    tf.pow(x,0)*tf.pow(y,0)*Sum_A(3,3, W),
    ], axis=2) 
 x_mapped = tf.reduce_sum(M_matrix, axis=2)
-
-        
+      
 plt.close('all')
+'''
+plt.figure()
+plt.plot(ch1copy[:,1]-x_mapped[:,1]*gridsize, ch1copy[:,0]-x_mapped[:,0]*gridsize, 'x')
+'''
 plt.figure()
 plt.plot(x_mapped[:,1]*gridsize,x_mapped[:,0]*gridsize, 'r.', label='Mapped')
-plt.plot(x_input[:,1]*gridsize,x_input[:,0]*gridsize, 'b.', label='Original')
-plt.plot(W[5][:,1]*gridsize,W[5][:,0]*gridsize,'rx',label='Floor')
-plt.plot(CP_locs[0,:,1]*gridsize, CP_locs[0,:,0]*gridsize, 'y+', label='Grid')
-for i in range(1,CP_locs.shape[0]):
-    plt.plot(CP_locs[i,:,1]*gridsize, CP_locs[i,:,0]*gridsize, 'y+')
-plt.legend()
-print(x_mapped*gridsize)
-print(x_input*gridsize)
+plt.plot(ch1copy[:,1],ch1copy[:,0], 'b.', label='Original')
 
-plt.figure()
-plt.plot(x_mapped[:,1]-x_input[:,1], x_mapped[:,0]-x_input[:,0], 'x')
+plt.plot(W[5][:,1]*gridsize,W[5][:,0]*gridsize,'rx',label='Floor')
+
+plt.plot(CP_locs1[0,:,1]*gridsize, CP_locs1[0,:,0]*gridsize, 'y+', label='Grid Mapped')
+for i in range(1,CP_locs.shape[0]):
+    plt.plot(CP_locs1[i,:,1]*gridsize, CP_locs1[i,:,0]*gridsize, 'y+')
+    
+plt.plot(CP_locs[0,:,1]*gridsize, CP_locs[0,:,0]*gridsize, 'g+', label='Grid Original')
+for i in range(1,CP_locs.shape[0]):
+    plt.plot(CP_locs[i,:,1]*gridsize, CP_locs[i,:,0]*gridsize, 'g+')
+plt.legend()

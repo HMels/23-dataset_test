@@ -23,7 +23,6 @@ import tensorflow as tf
 
 
 #%% functions
-#@tf.autograph.experimental.do_not_convert
 #@tf.function
 def Rel_entropy(ch1, ch2):
     return tf.reduce_sum(tf.square(ch1-ch2))
@@ -38,7 +37,7 @@ class CatmullRomSplines(tf.keras.Model):
     - gives it a shift and rotation deformation
     - calculates the relative entropy via Rel_entropy()    
     '''
-    def __init__(self, CP_locs, CP_idx, name='CatmullRomSplines'):
+    def __init__(self, CP_locs, CP_idx, ch2, name='CatmullRomSplines'):
         super().__init__(name=name)
 
         # The location of the ControlPoints. This will be trained
@@ -54,6 +53,7 @@ class CatmullRomSplines(tf.keras.Model):
             [-.5, 0, .5, 0],
             [0, 1, 0, 0]
             ], trainable=False, dtype=tf.float32)
+        self.r = ch2%1
 
 
     #@tf.function
@@ -64,14 +64,12 @@ class CatmullRomSplines(tf.keras.Model):
         return Rel_entropy(ch1, ch2_mapped)
     
     
-    #@tf.autograph.experimental.do_not_convert
     #@tf.function
     def transform_vec(self, x_input):
-        r = x_input - self.q11
-        return self.Spline_Map(r[:,0][:,None], r[:,1][:,None])
+        #r = x_input - self.q11
+        return self.Spline_Map(self.r[:,0][:,None], self.r[:,1][:,None])
     
     
-    #@tf.autograph.experimental.do_not_convert
     #@tf.function
     def Spline_Map(self,x,y):
         M_matrix = tf.stack([
@@ -98,8 +96,6 @@ class CatmullRomSplines(tf.keras.Model):
         return tf.reduce_sum(M_matrix, axis=2)
         
     
-    
-    #@tf.autograph.experimental.do_not_convert
     #@tf.function
     def Sum_A(self,a,b):
         A_matrix = tf.stack([
