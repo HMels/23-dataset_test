@@ -12,7 +12,7 @@ import MinEntropy_direct as MinEntropy
 
 
 #%% Splines
-def run_optimization_Splines(ch1, ch2, gridsize = 50):
+def run_optimization_Splines(ch1, ch2, gridsize=50, threshold=10):
     '''
     Parameters
     ----------
@@ -20,6 +20,9 @@ def run_optimization_Splines(ch1, ch2, gridsize = 50):
         Tensor containing the localizations of their channels.
     gridsize : float32, optional
         The size of the grid splines
+    threshold : int, optional
+        The amount of rejections before ending the optimization loop.
+        The default is 10.
 
     Returns
     -------
@@ -42,7 +45,8 @@ def run_optimization_Splines(ch1, ch2, gridsize = 50):
     
     # The Model
     mods = Models(model=MinEntropy.CatmullRomSplines(CP_locs, CP_idx, ch2), 
-                  learning_rate=1e-3, opt=tf.optimizers.Adagrad)
+                  learning_rate=1e-3, opt=tf.optimizers.Adagrad, 
+                  threshold=threshold)
     
     # The Training Function
     model_apply_grads = get_apply_grad_fn()
@@ -51,7 +55,7 @@ def run_optimization_Splines(ch1, ch2, gridsize = 50):
 
 
 #%% ShiftRot
-def run_optimization_ShiftRot(ch1, ch2, maxDistance = 50):
+def run_optimization_ShiftRot(ch1, ch2, maxDistance=50, threshold=10):
     '''
     Parameters
     ----------
@@ -59,6 +63,9 @@ def run_optimization_ShiftRot(ch1, ch2, maxDistance = 50):
         Tensor containing the localizations of their channels.
     maxDistance : float32, optional
         The distance in which the Nearest Neighbours will be searched
+    threshold : int, optional
+        The amount of rejections before ending the optimization loop.
+        The default is 10.
 
     Returns
     -------
@@ -75,8 +82,8 @@ def run_optimization_ShiftRot(ch1, ch2, maxDistance = 50):
     #nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
     
     # The Model
-    mods = Models(model=MinEntropy.ShiftRotMod(), 
-                  learning_rate=1, opt=tf.optimizers.Adagrad)
+    mods = Models(model=MinEntropy.ShiftRotMod(), learning_rate=1, 
+                  opt=tf.optimizers.Adagrad, threshold=threshold)
     
     ## Training Loop
     model_apply_grads = get_apply_grad_fn()
@@ -133,7 +140,7 @@ def get_apply_grad_fn():
 #%% 
 class Models():
     def __init__(self, model, learning_rate, opt,
-                 var=None, entropy=None, grads=None):
+                 var=None, entropy=None, grads=None, threshold=None):
         self.model = model 
         self.opt = opt 
         self.learning_rate = learning_rate
@@ -145,6 +152,7 @@ class Models():
         self.endloop = False
         self.rejections = 0
         self.var_old = model.trainable_weights.copy()
+        self.threshold = threshold if threshold is not None else 10
         
         
     def Training_loop(self, ch1, ch2):
@@ -155,6 +163,7 @@ class Models():
             
         self.opt_init.apply_gradients(zip(self.grads, self.var))
         
+        #print(self.var)
         y1 = self.model(ch1, ch2)
         self.Reject_fn(y1)
             
@@ -171,7 +180,7 @@ class Models():
             self.rejections+=1
             self.var = self.var_old.copy()
             self.reset_learning_rate(self.learning_rate/2)
-            if self.rejections==10:                                 # convergence reached
+            if self.rejections==self.threshold:         # convergence reached
                 self.endloop = True
                 
                 

@@ -84,7 +84,7 @@ hist_output = True                                  # do we want to have the his
 bin_width = .5                                      # Bin width in nm
 
 # The Image
-plot_img = True                                     # do we want to generate a plot
+plot_img = False                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
 threshold = 100                                     # threshold for reference points
@@ -104,13 +104,17 @@ output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 ch2_map = tf.Variable(ch2)
 
 # training loop ShiftRotMod
-mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, 30) 
+#mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, threshold=10) 
 
+#%% 
 # training loop CatmullRomSplines
-mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize = 20)
+mods2, ch2_map = run_optimization.run_optimization_Splines(
+    ch1, ch2_map, gridsize=50, threshold=5
+    )
 
 print('Optimization Done!')
-
+print('Maximum mapping=',np.max([ np.max(ch2_map[:,0]-ch2[:,0]),
+                                 np.max(ch2_map[:,1]-ch2[:,1]) ]))
 
 #%% Metrics
 if hist_output:

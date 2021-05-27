@@ -23,7 +23,7 @@ import tensorflow as tf
 
 
 #%% functions
-#@tf.function
+@tf.function
 def Rel_entropy(ch1, ch2):
     return tf.reduce_sum(tf.square(ch1-ch2))
 
@@ -49,29 +49,27 @@ class CatmullRomSplines(tf.keras.Model):
         self.A = tf.Variable([
             [-.5, 1.5, -1.5, 0.5],
             [1, -2.5, 2, -.5],
-            [-.5, 0, -.5, 0],
             [-.5, 0, .5, 0],
             [0, 1, 0, 0]
             ], trainable=False, dtype=tf.float32)
-        self.r = ch2%1
+        self.r = tf.Variable(ch2%1, trainable=False, dtype=tf.float32, 
+                             name='Distance to ControlPoinst')
 
 
-    #@tf.function
+    @tf.function
     def call(self, ch1, ch2):
-        self.update_splines()        
-        #ch2_mapped = self.transform_mat( ch2 )
+        #ch2_mapped = self.transform_mat( self.r )
         ch2_mapped = self.transform_vec( ch2 )
         return Rel_entropy(ch1, ch2_mapped)
     
     
     #@tf.function
+    @tf.autograph.experimental.do_not_convert
     def transform_vec(self, x_input):
-        #r = x_input - self.q11
-        return self.Spline_Map(self.r[:,0][:,None], self.r[:,1][:,None])
-    
-    
-    #@tf.function
-    def Spline_Map(self,x,y):
+        self.update_splines()        
+        x = x_input[:,0][:,None]%1
+        y = x_input[:,1][:,None]%1
+        
         M_matrix = tf.stack([
             tf.pow(x,3)*tf.pow(y,3)*self.Sum_A(0,0),
             tf.pow(x,3)*tf.pow(y,2)*self.Sum_A(0,1),
@@ -97,6 +95,7 @@ class CatmullRomSplines(tf.keras.Model):
         
     
     #@tf.function
+    @tf.autograph.experimental.do_not_convert
     def Sum_A(self,a,b):
         A_matrix = tf.stack([
             self.A[a,0]*self.A[b,0]*self.q00,
