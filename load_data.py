@@ -36,7 +36,7 @@ def load_data_GaussianSpots(path, alignment = True, zoom = 10, pix_size = 100):
         ch1 = Dataset.load(path[0])
         ch2 = Dataset.load(path[1])
     else:
-        print('Error: Path invalid for current group setting!')
+        print('Error: Path invalid for current coupled setting!')
     
     if alignment:
         print('Alignning both datasets')
@@ -64,7 +64,7 @@ def load_data_localizations(path, alignment = True, pix_size = 100):
     alignment : bool, optional
         True if we want to do a FFT cross-correlation alignment beforehand
     pix_size : float, optional
-        size of the pixels in nm. The default is 100
+        size of the pixels in nm. The default is 100.
 
     Returns
     -------

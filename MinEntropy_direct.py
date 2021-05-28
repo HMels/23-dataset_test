@@ -19,8 +19,8 @@ The script also contains the next Model in the form of Classes
 - Polynomial_module:                the Polynomial model for calculating the minimum entropy
 |- Polynomial
 '''
-import tensorflow as tf
 
+import tensorflow as tf
 
 #%% functions
 @tf.function

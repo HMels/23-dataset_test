@@ -56,29 +56,28 @@ p.mkdir(exist_ok=True)
 
 #%% Channel Generation
 ## Dataset
-realdata = True                                    # load real data or generate from real data
-subset = 1                                         # percentage of original dataset
-pix_size = 1
+realdata = False                                    # load real data or generate from real data
+direct = False                                       # True if data is coupled
+subset = .2                                         # percentage of original dataset
+pix_size = 100
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
-error = 0                                         # localization error in nm
+error = 0.1                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
 
 ## Deformation of channel B
 max_deform = 150                                    # maximum amount of deform in nm
-shift = np.array([ 17  , 9 ])                      # shift in nm
+shift = np.array([ 13  , 9 ])                      # shift in nm
 rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-shear = np.array([0.0, 0.0])                      # shear
-scaling = np.array([1.0,1.0 ])                    # scaling 
+shear = np.array([0.003, 0.002])                      # shear
+scaling = np.array([1.0004,1.0003 ])                    # scaling 
 deform = Deform(shift, rotation, shear, scaling)
 
 
 #%% output params
-plt.close('all')
-
 # Histogram
 hist_output = True                                  # do we want to have the histogram output
 bin_width = .5                                      # Bin width in nm
@@ -104,30 +103,31 @@ output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 ch2_map = tf.Variable(ch2)
 
 # training loop ShiftRotMod
-#mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, threshold=10) 
+mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
+                                                            threshold=10, learning_rate=1,
+                                                            direct=direct) 
+print('Shift Mapping=', mods1.model.trainable_variables[0].numpy(), 'nm')
+print('Rotation Mapping=', mods1.model.trainable_variables[1].numpy()/100,'degrees')
 
-#%% 
 # training loop CatmullRomSplines
-mods2, ch2_map = run_optimization.run_optimization_Splines(
-    ch1, ch2_map, gridsize=50, threshold=5
-    )
-
+mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=5, 
+                                                           threshold=1, maxDistance=30,
+                                                           learning_rate=1e-3, direct=direct)
 print('Optimization Done!')
-print('Maximum mapping=',np.max([ np.max(ch2_map[:,0]-ch2[:,0]),
-                                 np.max(ch2_map[:,1]-ch2[:,1]) ]))
+print('Maximum mapping=',np.max( np.sqrt((ch2_map[:,0]-ch2[:,0])**2 +
+                                 (ch2_map[:,1]-ch2[:,1])**2 ) ),'[nm]')
 
 #%% Metrics
+plt.close('all')
 if hist_output:
     if realdata: N0 = ch1.shape[0]
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
-    ## Calculate Average Shift errorFOV_direct
-    avg1, avg2 = output_fn.errorHist_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
-    #avg1, avg2 = output_fn.errorHist_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy() , bin_width)
-    
-    _, _ = output_fn.errorFOV_direct(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
-    #_, _ = output_fn.errorFOV_neighbours(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), ch2_map[:N0,:].numpy())
-    
+    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
+                                            ch2_map[:N0,:].numpy() , bin_width,
+                                            direct=direct)
+    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
+                              ch2_map[:N0,:].numpy(), direct=direct)
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
 
