@@ -157,5 +157,6 @@ print('Done')
 
 
 #%% Plotting the Grid
-output_fn.plot_grid(ch1, ch2, ch2_map, mods2.model.trainable_variables[0]*gridsize)
-
+output_fn.plot_grid(ch1, ch2, ch2_map, mods2, gridsize=gridsize, d_grid = .05, 
+                    locs_markersize=10, CP_markersize=3, grid_markersize=3, 
+                    grid_opacity=1, lines_per_CP=4, )

@@ -175,6 +175,15 @@ class CatmullRomSplines(tf.keras.Model):
         self.q31 = tf.gather_nd(self.CP_locs, idx+[2,0])  # q_k
         self.q32 = tf.gather_nd(self.CP_locs, idx+[2,1])  # q_k
         self.q33 = tf.gather_nd(self.CP_locs, idx+[2,2])  # q_k
+        
+        
+    def reset_CP(self, CP_idx, CP_idx_nn=None):
+        # The indices of which locs in ch2 belong to which CP_locs
+        self.CP_idx = tf.Variable(CP_idx, dtype=tf.int32,
+                                  trainable=False, name='ControlPointsIdx')
+        self.CP_idx_nn = (tf.Variable(CP_idx_nn, dtype=tf.int32,
+                                  trainable=False, name='ControlPointsIdx')
+                          if CP_idx_nn is not None else {})
 
 
 #%% ShiftRotMod

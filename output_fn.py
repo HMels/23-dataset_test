@@ -7,6 +7,9 @@ Created on Thu Apr 22 14:26:22 2021
 import numpy as np
 import time
 import matplotlib.pyplot as plt
+from copy import copy
+import tensorflow as tf
+
 
 from generate_neighbours import KNN
 
@@ -159,52 +162,84 @@ def errorFOV(ch1, ch2, ch2m, plot_on=True, direct=False):
 
 
 #%% Plotting the grid
-def plot_grid(ch1, ch2, ch2_map, CP_locs, subgrid=True, markersize=5):    
-    plt.figure()
-    plt.plot(ch2_map[:,1],ch2_map[:,0], color='red', marker='.', linestyle='',
-             markersize=markersize, label='Mapped CH2')
-    plt.plot(ch2[:,1],ch2[:,0], color='orange', marker='+', linestyle='', 
-             alpha=.85, markersize=markersize, label='Original CH2')
-    plt.plot(ch1[:,1],ch1[:,0], color='blue', marker='.', linestyle='', 
-             markersize=markersize, label='Original CH1')
-        
-    #plt.plot(CP_locs[0,:,1]*gridsize, CP_locs[0,:,0]*gridsize, 'y+', label='Grid Mapped')
-    #for i in range(1,CP_locs.shape[0]):
-    #    plt.plot(CP_locs[i,:,1]*gridsize, CP_locs[i,:,0]*gridsize, 'y+')
+def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1, 
+              locs_markersize=10, CP_markersize=8, grid_markersize=3, grid_opacity=1): 
+    '''
+    Plots the grid and the shape of the grid in between the Control Points
+
+    Parameters
+    ----------
+    ch1 , ch2 , ch2_map : Nx2 tf.float32 tensor
+        The tensor containing the localizations.
+    mods : Models() Class
+        The Model which has been trained on the dataset.
+    gridsize : float, optional
+        The size of the grid used in mods. The default is 50.
+    d_grid : float, optional
+        The precission of the grid we want to plot in between the
+        Control Points. The default is .1.
+    locs_markersize : float, optional
+        The size of the markers of the localizations. The default is 10.
+    CP_markersize : float, optional
+        The size of the markers of the Controlpoints. The default is 8.
+    grid_markersize : float, optional
+        The size of the markers of the grid. The default is 3.
+    grid_opacity : float, optional
+        The opacity of the grid. The default is 1.
+    lines_per_CP : int, optional
+        The number of lines we want to plot in between the grids. 
+        Works best if even. The default is 1.
+
+    Returns
+    -------
+    None.
+
+    '''
+    # system parameters
+    x1_min = tf.reduce_min(tf.floor(ch2[:,0]/gridsize))
+    x1_max = tf.reduce_max(tf.floor(ch2[:,0]/gridsize))
+    x2_min = tf.reduce_min(tf.floor(ch2[:,1]/gridsize))
+    x2_max = tf.reduce_max(tf.floor(ch2[:,1]/gridsize))
     
-    for i in range(1,CP_locs.shape[0]):
-        plt.plot([CP_locs[i-1,0,1], CP_locs[i,0,1]], [CP_locs[i-1,0,0], CP_locs[i,0,0]], 'g:', lw=0.9)
-    for i in range(1,CP_locs.shape[0]):
-        for j in range(1,CP_locs.shape[1]):
-            x1_0 = CP_locs[i-1,j-1,0]
-            x2_0 = CP_locs[i-1,j-1,1]
-            x1_1 = CP_locs[i-1,j,0]
-            x2_1 = CP_locs[i-1,j,1]
-            x1_2 = CP_locs[i,j,0]
-            x2_2 = CP_locs[i,j,1]
-            x1_3 = CP_locs[i,j-1,0]
-            x2_3 = CP_locs[i,j-1,1]
-            
-            x1 = [x1_0, x1_1, x1_2, x1_3]
-            x2 = [x2_0, x2_1, x2_2, x2_3]
-            
-            for k in range(3):
-                plt.plot([x2[k], x2[k+1]], [x1[k], x1[k+1]], 'g:', lw=1)
-            
-            if subgrid:
-                dx1=[]
-                dx2=[]
-                for k in range(4):
-                    dx1.append(np.abs(x1[k]-x1[k-1])/3)
-                    dx2.append(np.abs(x2[k]-x2[k-1])/3)
-                    
-                plt.plot([x2[0]+(x2[1]-x2[0])/3, x2[-1]+(x2[2]-x2[3])/3], 
-                         [x1[0]+(x1[1]-x1[0])/3, x1[-1]+(x1[2]-x1[3])/3], 'g:', lw=0.6)
-                plt.plot([x2[0]+2*(x2[1]-x2[0])/3, x2[-1]+2*(x2[2]-x2[3])/3],
-                         [x1[0]+2*(x1[1]-x1[0])/3, x1[-1]+2*(x1[2]-x1[3])/3], 'g:', lw=0.6)
-                plt.plot([x2[0]+(x2[3]-x2[0])/3, x2[1]+(x2[2]-x2[1])/3], 
-                         [x1[0]+(x1[3]-x1[0])/3, x1[1]+(x1[2]-x1[1])/3], 'g:', lw=0.6)
-                plt.plot([x2[0]+2*(x2[3]-x2[0])/3, x2[1]+2*(x2[2]-x2[1])/3], 
-                         [x1[0]+2*(x1[3]-x1[0])/3, x1[1]+2*(x1[2]-x1[1])/3], 'g:', lw=0.6)
-                plt.plot
+    # Creating the horizontal grid
+    grid_tf = []
+    x1_grid = tf.range(x1_min, x1_max+1, d_grid)
+    x2_grid = x2_min * tf.ones(x1_grid.shape[0], dtype=tf.float32)
+    while x2_grid[0] < x2_max+.99:
+        grid_tf.append(tf.concat((x1_grid[:,None], x2_grid[:,None]), axis=1))
+        x2_grid +=  np.round(1/lines_per_CP,2)
+    
+    # Creating the vertical grid
+    x2_grid = tf.range(x2_min, x2_max+1, d_grid)
+    x1_grid = x1_min * tf.ones(x2_grid.shape[0], dtype=tf.float32)
+    while x1_grid[0] < x1_max+.99:
+        grid_tf.append(np.concatenate((x1_grid[:,None], x2_grid[:,None]), axis=1))
+        x1_grid += np.round(1/lines_per_CP,2)
+        
+    # Adding to get the original grid 
+    grid_tf = tf.concat(grid_tf, axis=0)
+    CP_idx = tf.cast(tf.stack(
+            [( grid_tf[:,0]-tf.reduce_min(tf.floor(grid_tf[:,0]))+1)//1 , 
+             ( grid_tf[:,1]-tf.reduce_min(tf.floor(grid_tf[:,1]))+1)//1 ], 
+            axis=1), dtype=tf.int32)
+    
+    # transforming the grid
+    mods_temp = copy(mods.model)
+    mods_temp.reset_CP(CP_idx)
+    grid_tf = mods_temp.transform_vec(grid_tf)
+    
+    # plotting the localizations
+    plt.figure()
+    plt.plot(ch2_map[:,0],ch2_map[:,1], color='red', marker='.', linestyle='',
+             markersize=locs_markersize, label='Mapped CH2')
+    plt.plot(ch2[:,0],ch2[:,1], color='orange', marker='.', linestyle='', 
+             alpha=.7, markersize=locs_markersize-2, label='Original CH2')
+    plt.plot(ch1[:,0],ch1[:,1], color='blue', marker='.', linestyle='', 
+             markersize=locs_markersize, label='Original CH1')
+    
+    # plotting the grid
+    plt.plot(grid_tf[:,0]*gridsize,grid_tf[:,1]*gridsize, 'g.',
+             markersize=grid_markersize, alpha=grid_opacity)
+    plt.plot( mods.model.CP_locs[:,:,0]*gridsize,  mods.model.CP_locs[:,:,1]*gridsize, 
+             'b+', markersize=CP_markersize)
     plt.legend()
