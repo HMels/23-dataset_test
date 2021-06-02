@@ -56,22 +56,22 @@ p.mkdir(exist_ok=True)
 
 #%% Channel Generation
 ## Dataset
-realdata = False                                    # load real data or generate from real data
-direct = False                                       # True if data is coupled
-subset = .2                                         # percentage of original dataset
-pix_size = 100
+realdata = True                                    # load real data or generate from real data
+direct = True                                       # True if data is coupled
+subset = 1                                         # percentage of original dataset
+pix_size = 1
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
-error = 0.1                                         # localization error in nm
+error = 0.0                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
 
 ## Deformation of channel B
 max_deform = 150                                    # maximum amount of deform in nm
-shift = np.array([ 13  , 9 ])                      # shift in nm
-rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+shift = np.array([ 12  , 9 ])                      # shift in nm
+rotation = .5                                      # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
 shear = np.array([0.003, 0.002])                      # shear
 scaling = np.array([1.0004,1.0003 ])                    # scaling 
 deform = Deform(shift, rotation, shear, scaling)
@@ -106,15 +106,16 @@ ch2_map = tf.Variable(ch2)
 mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
                                                             direct=direct) 
-print('Shift Mapping=', mods1.model.trainable_variables[0].numpy(), 'nm')
-print('Rotation Mapping=', mods1.model.trainable_variables[1].numpy()/100,'degrees')
+print('I: Shift Mapping=', mods1.model.trainable_variables[0].numpy(), 'nm')
+print('I: Rotation Mapping=', mods1.model.trainable_variables[1].numpy()/100,'degrees')
 
 # training loop CatmullRomSplines
-mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=5, 
+gridsize=100
+mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=gridsize, 
                                                            threshold=1, maxDistance=30,
                                                            learning_rate=1e-3, direct=direct)
 print('Optimization Done!')
-print('Maximum mapping=',np.max( np.sqrt((ch2_map[:,0]-ch2[:,0])**2 +
+print('I: Maximum mapping=',np.max( np.sqrt((ch2_map[:,0]-ch2[:,0])**2 +
                                  (ch2_map[:,1]-ch2[:,1])**2 ) ),'[nm]')
 
 #%% Metrics
@@ -154,4 +155,7 @@ if plot_img:
 
 print('Done')
 
+
+#%% Plotting the Grid
+output_fn.plot_grid(ch1, ch2, ch2_map, mods2.model.trainable_variables[0]*gridsize)
 

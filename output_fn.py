@@ -149,10 +149,62 @@ def errorFOV(ch1, ch2, ch2m, plot_on=True, direct=False):
     if plot_on:
         plt.figure()
         plt.title('Distribution of error between neighbouring pairs over radius')
-        plt.plot(r, error1, 'r.', alpha=.3, label='Original error')
-        plt.plot(r, error2, 'b.', alpha=.4, label='Mapped error')
+        plt.plot(r, error1, 'b.', alpha=.3, label='Original error')
+        plt.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
         plt.xlabel('Distance from center [nm]')
         plt.ylabel('Error [nm]')
         plt.legend()
     
     return avg1, avg2
+
+
+#%% Plotting the grid
+def plot_grid(ch1, ch2, ch2_map, CP_locs, subgrid=True, markersize=5):    
+    plt.figure()
+    plt.plot(ch2_map[:,1],ch2_map[:,0], color='red', marker='.', linestyle='',
+             markersize=markersize, label='Mapped CH2')
+    plt.plot(ch2[:,1],ch2[:,0], color='orange', marker='+', linestyle='', 
+             alpha=.85, markersize=markersize, label='Original CH2')
+    plt.plot(ch1[:,1],ch1[:,0], color='blue', marker='.', linestyle='', 
+             markersize=markersize, label='Original CH1')
+        
+    #plt.plot(CP_locs[0,:,1]*gridsize, CP_locs[0,:,0]*gridsize, 'y+', label='Grid Mapped')
+    #for i in range(1,CP_locs.shape[0]):
+    #    plt.plot(CP_locs[i,:,1]*gridsize, CP_locs[i,:,0]*gridsize, 'y+')
+    
+    for i in range(1,CP_locs.shape[0]):
+        plt.plot([CP_locs[i-1,0,1], CP_locs[i,0,1]], [CP_locs[i-1,0,0], CP_locs[i,0,0]], 'g:', lw=0.9)
+    for i in range(1,CP_locs.shape[0]):
+        for j in range(1,CP_locs.shape[1]):
+            x1_0 = CP_locs[i-1,j-1,0]
+            x2_0 = CP_locs[i-1,j-1,1]
+            x1_1 = CP_locs[i-1,j,0]
+            x2_1 = CP_locs[i-1,j,1]
+            x1_2 = CP_locs[i,j,0]
+            x2_2 = CP_locs[i,j,1]
+            x1_3 = CP_locs[i,j-1,0]
+            x2_3 = CP_locs[i,j-1,1]
+            
+            x1 = [x1_0, x1_1, x1_2, x1_3]
+            x2 = [x2_0, x2_1, x2_2, x2_3]
+            
+            for k in range(3):
+                plt.plot([x2[k], x2[k+1]], [x1[k], x1[k+1]], 'g:', lw=1)
+            
+            if subgrid:
+                dx1=[]
+                dx2=[]
+                for k in range(4):
+                    dx1.append(np.abs(x1[k]-x1[k-1])/3)
+                    dx2.append(np.abs(x2[k]-x2[k-1])/3)
+                    
+                plt.plot([x2[0]+(x2[1]-x2[0])/3, x2[-1]+(x2[2]-x2[3])/3], 
+                         [x1[0]+(x1[1]-x1[0])/3, x1[-1]+(x1[2]-x1[3])/3], 'g:', lw=0.6)
+                plt.plot([x2[0]+2*(x2[1]-x2[0])/3, x2[-1]+2*(x2[2]-x2[3])/3],
+                         [x1[0]+2*(x1[1]-x1[0])/3, x1[-1]+2*(x1[2]-x1[3])/3], 'g:', lw=0.6)
+                plt.plot([x2[0]+(x2[3]-x2[0])/3, x2[1]+(x2[2]-x2[1])/3], 
+                         [x1[0]+(x1[3]-x1[0])/3, x1[1]+(x1[2]-x1[1])/3], 'g:', lw=0.6)
+                plt.plot([x2[0]+2*(x2[3]-x2[0])/3, x2[1]+2*(x2[2]-x2[1])/3], 
+                         [x1[0]+2*(x1[3]-x1[0])/3, x1[1]+2*(x1[2]-x1[1])/3], 'g:', lw=0.6)
+                plt.plot
+    plt.legend()

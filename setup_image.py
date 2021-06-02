@@ -40,25 +40,25 @@ class Deform():
         
         
     def deform(self, locs):
-        if (self.shift[0] != 0 and self.shift[1] != 0) and self.shift is not None:
+        if (self.shift[0] != 0 or self.shift[1] != 0) and self.shift is not None:
             locs = self.shift_def(locs)
         if (self.rotation != 0) and self.rotation is not None:
             locs = self.rotation_def(locs)
-        if (self.shear[0] != 0 and self.shear[1] != 0) and self.shear is not None:
+        if (self.shear[0] != 0 or self.shear[1] != 0) and self.shear is not None:
             locs = self.shear_def(locs)
-        if (self.scaling[0] != 1 and self.scaling[1] != 1) and self.scaling is not None:
+        if (self.scaling[0] != 1 or self.scaling[1] != 1) and self.scaling is not None:
             locs = self.scaling_def(locs)
         return locs
     
     
     def ideform(self, locs):
-        if (self.scaling[0] != 1 and self.scaling[1] != 1) and self.scaling is not None:
+        if (self.scaling[0] != 1 or self.scaling[1] != 1) and self.scaling is not None:
             locs = self.scaling_idef(locs)
-        if (self.shear[0] != 0 and self.shear[1] != 0) and self.shear is not None:
+        if (self.shear[0] != 0 or self.shear[1] != 0) and self.shear is not None:
             locs = self.shear_idef(locs)
-        if (self.rotation != 0) and self.rotation is not None:
+        if (self.rotation != 0) or self.rotation is not None:
             locs = self.rotation_idef(locs)
-        if (self.shift[0] != 0 and self.shift[1] != 0) and self.shift is not None:
+        if (self.shift[0] != 0 or self.shift[1] != 0) and self.shift is not None:
             locs = self.shift_idef(locs)
         return locs
         
