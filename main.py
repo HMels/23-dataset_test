@@ -76,6 +76,8 @@ shear = np.array([0.003, 0.002])                      # shear
 scaling = np.array([1.0004,1.0003 ])                    # scaling 
 deform = Deform(shift, rotation, shear, scaling)
 
+## Splines Parameters
+gridsize=200                                        # The gridsize of the splines
 
 #%% output params
 # Histogram
@@ -83,16 +85,17 @@ hist_output = True                                  # do we want to have the his
 bin_width = .5                                      # Bin width in nm
 
 # The Image
-plot_img = False                                     # do we want to generate a plot
+plot_img = True                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
 threshold = 100                                     # threshold for reference points
 
 
 #%% Generate Data
-locs_A, locs_B = generate_data.run_channel_generation(
+locs_A, locs_B = generate_data.generate_channels(
     path, deform, error, Noise, realdata, subset, pix_size
     )
+#locs_A, locs_B = generate_data.generate_channels_random(216, deform, error=error, Noise=Noise)
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
@@ -100,20 +103,28 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 #%% Minimum Entropy
 # Error Message
 output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
-ch2_map = tf.Variable(ch2)
+
+# Initialize used variables
+ch2_map=tf.Variable(ch2)
+ShiftRotMod=None
+SplinesMod=None
 
 # training loop ShiftRotMod
-mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
+ShiftRotMod, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
-                                                            direct=direct) 
-print('I: Shift Mapping=', mods1.model.trainable_variables[0].numpy(), 'nm')
-print('I: Rotation Mapping=', mods1.model.trainable_variables[1].numpy()/100,'degrees')
+                                                            direct=direct)
 
+if ShiftRotMod is not None: 
+    print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
+    print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
+else:
+    print('I: No shift or rotation mapping used')
+'''
 # training loop CatmullRomSplines
-gridsize=100
-mods2, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=gridsize, 
+SplinesMod, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=gridsize, 
                                                            threshold=1, maxDistance=30,
                                                            learning_rate=1e-3, direct=direct)
+'''
 print('Optimization Done!')
 print('I: Maximum mapping=',np.max( np.sqrt((ch2_map[:,0]-ch2[:,0])**2 +
                                  (ch2_map[:,1]-ch2[:,1])**2 ) ),'[nm]')
@@ -152,11 +163,16 @@ if plot_img:
     
     generate_image.plot_channel(channel1, channel2, channel2m, bounds,
                             ref_channel1, precision, reference)
-
-print('Done')
+    
+    generate_image.plot_1channel(channel1, bounds, ref_channel1, precision, reference=False)
 
 
 #%% Plotting the Grid
-output_fn.plot_grid(ch1, ch2, ch2_map, mods2, gridsize=gridsize, d_grid = .05, 
-                    locs_markersize=10, CP_markersize=3, grid_markersize=3, 
-                    grid_opacity=1, lines_per_CP=4, )
+if SplinesMod is not None:
+    output_fn.plot_grid(ch1, ch2, ch2_map, SplinesMod, gridsize=gridsize, d_grid = .05, 
+                        locs_markersize=10, CP_markersize=8, grid_markersize=3, 
+                        grid_opacity=1, lines_per_CP=4)
+else:
+    print('I: No Spline Mapping used')
+
+print('Done')

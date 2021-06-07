@@ -39,6 +39,21 @@ def plot_channel(channel1, channel2, channel3, bounds, ref_channel1, precision,
     if reference:
         plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('channel 2 mapped')
+    
+    
+def plot_1channel(channel1, bounds, ref_channel1, precision, reference=False):
+    axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
+    axis = np.reshape(axis, [1,4])[0]
+    
+    if reference:
+        ref_channel1[:,0] = -1 * ref_channel1[:,0]
+    
+    # plotting all channels
+    plt.figure()
+    plt.imshow(np.rot90(channel1))
+    if reference:
+        plt.plot(ref_channel1[:,0], ref_channel1[:,1], 'r+', ls = '')
+    plt.title('original channel 1')
 
 
 def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 150):

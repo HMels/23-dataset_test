@@ -6,8 +6,8 @@ import numpy.random as rnd
 
 import load_data
 
-#%% functions
-def run_channel_generation(path, deform, error=10, Noise=0.1, realdata=True, 
+#%% Generate Channel fuctions
+def generate_channels(path, deform, error=10, Noise=0.1, realdata=True, 
                            subset=1, pix_size=100):
     '''
     Parameters
@@ -67,6 +67,59 @@ def run_channel_generation(path, deform, error=10, Noise=0.1, realdata=True,
     return locs_A, locs_B
 
 
+def generate_channels_random(N, deform, error=10, Noise=0.1,
+                      x1_params=[-500,500], x2_params=[-300,300]):
+    '''
+    Generates a random channel
+
+    Parameters
+    ----------
+    N : int
+        The number of localizations per channel to be generated.
+    deform : Deform() class
+        The class containing the deformations of channel B.
+    error : float, optional
+        The error or the localizations to be generated. The default is 10.
+    Noise : float, optional
+        The percentage of uniform noise present. The default is 0.1.
+    x1_params , x2_params : list, optional
+        List containing the x1 and x2 system sizes. The default is [-300,300].
+
+    Returns
+    -------
+    locs_A, locs_B : Nx2 matrix float
+        The actual locations of the localizations.
+
+    '''
+    
+    locs_A = rnd.rand(N,2)
+    locs_A[:,0] = x1_params[0] + locs_A[:,0]*(x1_params[1]-x1_params[0]-50)
+    locs_A[:,1] = x2_params[0] + locs_A[:,1]*(x2_params[1]-x2_params[0]-50)
+    
+    locs_B = locs_A.copy()
+    locs_A = localization_error( locs_A, error )
+    locs_B = localization_error( locs_B, error )
+    
+    img = np.empty([2,2], dtype = float)
+    img[0,0] = np.min(locs_A[:,0])
+    img[0,1] = np.max(locs_A[:,0])
+    img[1,0] = np.min(locs_A[:,1])
+    img[1,1] = np.max(locs_A[:,1])
+    mid = (img[:,0] + img[:,1])/2
+    
+    locs_A[:,0] = locs_A[:,0] - mid[0]
+    locs_B[:,0] = locs_B[:,0] - mid[0] 
+    locs_A[:,1] = locs_A[:,1] - mid[1]
+    locs_B[:,1] = locs_B[:,1] - mid[1]
+    
+    locs_B = deform.deform(locs_B)
+    locs_A = generate_noise(locs_A, img, Noise)
+    locs_B = generate_noise(locs_B, img, Noise)
+    
+    return locs_A, locs_B
+
+
+#%% functions
 def localization_error(locs, error = 10):
     '''
     Generates a Gaussian localization error over the localizations 

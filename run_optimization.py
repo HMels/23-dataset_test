@@ -177,13 +177,19 @@ def get_apply_grad_fn():
             while not mods.endloop:
                 mods.Training_loop(ch1, ch2)                 # the training loop
                 i+=1     
-                if i%50==0: print('i = ',i)
+                if i%1000==0: print('i = ',i)
+                if i==25000:
+                    print('Error: maximum iterations reached. Restart the training loop')
+                    break
                 
         elif nn1 is not None and nn2 is not None:
             while not mods.endloop:
                 mods.Training_loop(nn1, nn2)                 # the training loop
                 i+=1     
-                if i%50==0: print('i = ',i)
+                if i%1000==0: print('i = ',i)
+                if i==25000:
+                    print('Error: maximum iterations reached. Restart the training loop')
+                    break
                 
                 
         print('completed in',i,' iterations')

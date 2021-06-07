@@ -195,6 +195,7 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
     None.
 
     '''
+    print('Plotting the Spline Grid...')
     # system parameters
     x1_min = tf.reduce_min(tf.floor(ch2[:,0]/gridsize))
     x1_max = tf.reduce_max(tf.floor(ch2[:,0]/gridsize))
@@ -203,21 +204,42 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
     
     # Creating the horizontal grid
     grid_tf = []
+    marker = []
     x1_grid = tf.range(x1_min, x1_max+1, d_grid)
     x2_grid = x2_min * tf.ones(x1_grid.shape[0], dtype=tf.float32)
-    while x2_grid[0] < x2_max+.99:
+    while x2_grid[0] < x2_max+.8:
+        # Mark the grid lines from the inbetween grid lines
+        if x2_grid[0]%1<.05 or x2_grid[0]%1>.95:            marker.append(np.ones(x1_grid.shape))
+        else:        marker.append(np.zeros(x1_grid.shape))
+        
+        # Create grid
         grid_tf.append(tf.concat((x1_grid[:,None], x2_grid[:,None]), axis=1))
         x2_grid +=  np.round(1/lines_per_CP,2)
+    # Creating the right grid line
+    grid_tf.append(tf.concat(( x1_grid[:,None], 
+                              (x2_max+.99)*tf.ones([x1_grid.shape[0],1], dtype=tf.float32),
+                              ), axis=1))
+    marker.append(np.ones(x1_grid.shape))
     
     # Creating the vertical grid
     x2_grid = tf.range(x2_min, x2_max+1, d_grid)
     x1_grid = x1_min * tf.ones(x2_grid.shape[0], dtype=tf.float32)
-    while x1_grid[0] < x1_max+.99:
-        grid_tf.append(np.concatenate((x1_grid[:,None], x2_grid[:,None]), axis=1))
+    while x1_grid[0] < x1_max+.8:
+        # Mark the grid lines from the inbetween grid lines
+        if x1_grid[0]%1<.05 or x1_grid[0]%1>.95:            marker.append(np.ones(x1_grid.shape))
+        else:        marker.append(np.zeros(x1_grid.shape))
+        
+        # Create grid
+        grid_tf.append(tf.concat((x1_grid[:,None], x2_grid[:,None]), axis=1))
         x1_grid += np.round(1/lines_per_CP,2)
+    # Creating the upper grid line
+    grid_tf.append(tf.concat(( (x1_max+.99)*tf.ones([x1_grid.shape[0],1], dtype=tf.float32),
+                                  x2_grid[:,None]), axis=1))
+    marker.append(np.ones(x1_grid.shape))
         
     # Adding to get the original grid 
     grid_tf = tf.concat(grid_tf, axis=0)
+    marker = tf.concat(marker, axis=0)
     CP_idx = tf.cast(tf.stack(
             [( grid_tf[:,0]-tf.reduce_min(tf.floor(grid_tf[:,0]))+1)//1 , 
              ( grid_tf[:,1]-tf.reduce_min(tf.floor(grid_tf[:,1]))+1)//1 ], 
@@ -234,12 +256,32 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
              markersize=locs_markersize, label='Mapped CH2')
     plt.plot(ch2[:,0],ch2[:,1], color='orange', marker='.', linestyle='', 
              alpha=.7, markersize=locs_markersize-2, label='Original CH2')
-    plt.plot(ch1[:,0],ch1[:,1], color='blue', marker='.', linestyle='', 
+    plt.plot(ch1[:,0],ch1[:,1], color='green', marker='.', linestyle='', 
              markersize=locs_markersize, label='Original CH1')
     
-    # plotting the grid
-    plt.plot(grid_tf[:,0]*gridsize,grid_tf[:,1]*gridsize, 'g.',
-             markersize=grid_markersize, alpha=grid_opacity)
-    plt.plot( mods.model.CP_locs[:,:,0]*gridsize,  mods.model.CP_locs[:,:,1]*gridsize, 
-             'b+', markersize=CP_markersize)
+    # spliting grid from inbetween grid
+    if lines_per_CP != 1:
+        marker_idx1=np.argwhere(marker==1)
+        marker_idx2=np.argwhere(marker==0)
+        grid_tf1 = tf.gather_nd(grid_tf, marker_idx1)
+        grid_tf2 = tf.gather_nd(grid_tf, marker_idx2)
+        #print(grid_tf.shape, grid_tf1.shape, grid_tf2.shape)
+        
+        # plotting the gridlines
+        plt.plot(grid_tf1[:,0]*gridsize,grid_tf1[:,1]*gridsize, 'b.',
+                 markersize=grid_markersize, alpha=grid_opacity)
+        plt.plot( mods.model.CP_locs[:,:,0]*gridsize,  mods.model.CP_locs[:,:,1]*gridsize, 
+                 'b+', markersize=CP_markersize)
+
+        # plotting the inbetween gridlines
+        plt.plot(grid_tf2[:,0]*gridsize,grid_tf2[:,1]*gridsize, 'c.',
+                 markersize=grid_markersize, alpha=grid_opacity)
+    
+    else:
+        # plotting the gridlines
+        plt.plot(grid_tf[:,0]*gridsize,grid_tf[:,1]*gridsize, 'b.',
+                 markersize=grid_markersize, alpha=grid_opacity)
+        plt.plot( mods.model.CP_locs[:,:,0]*gridsize,  mods.model.CP_locs[:,:,1]*gridsize, 
+                 'b+', markersize=CP_markersize)
+        
     plt.legend()
