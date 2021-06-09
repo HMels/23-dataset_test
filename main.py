@@ -70,14 +70,14 @@ Noise = 0.0                                         # percentage of noise
 
 ## Deformation of channel B
 max_deform = 150                                    # maximum amount of deform in nm
-shift = np.array([ 12  , 9 ])                      # shift in nm
-rotation = .5                                      # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-shear = np.array([0.003, 0.002])                      # shear
-scaling = np.array([1.0004,1.0003 ])                    # scaling 
+shift = np.array([ 12  , 9 ])                       # shift in nm
+rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+shear = np.array([0.003, 0.002])                    # shear
+scaling = np.array([1.0004,1.0003 ])                # scaling 
 deform = Deform(shift, rotation, shear, scaling)
 
-## Splines Parameters
-gridsize=200                                        # The gridsize of the splines
+## Splines
+gridsize=200
 
 #%% output params
 # Histogram
@@ -122,7 +122,7 @@ else:
 '''
 # training loop CatmullRomSplines
 SplinesMod, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=gridsize, 
-                                                           threshold=1, maxDistance=30,
+                                                           threshold=10, maxDistance=30,
                                                            learning_rate=1e-3, direct=direct)
 '''
 print('Optimization Done!')

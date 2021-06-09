@@ -235,7 +235,7 @@ class Models():
         if y1<self.entropy:
             self.Reject = False
             self.rejections = 0
-            #self.reset_learning_rate(self.learning_rate*1.05)
+            self.reset_learning_rate(self.learning_rate)
             self.endloop = False
         else:
             self.Reject = True
