@@ -235,13 +235,13 @@ class Models():
         if y1<self.entropy:
             self.Reject = False
             self.rejections = 0
-            self.reset_learning_rate(self.learning_rate)
+            #self.reset_learning_rate(self.learning_rate)
             self.endloop = False
         else:
             self.Reject = True
             self.rejections+=1
             self.var = self.var_old.copy()
-            self.reset_learning_rate(self.learning_rate/2)
+            #self.reset_learning_rate(self.learning_rate/2)
             if self.rejections==self.threshold:         # convergence reached
                 self.endloop = True
                 

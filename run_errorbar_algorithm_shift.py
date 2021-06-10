@@ -50,8 +50,7 @@ for i in range(N):
         
         # training loop ShiftRotMod
         mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2, maxDistance=30, 
-                                                                    threshold=10, learning_rate=1
-                                                                    , lr_scaling = [1, 0.5], direct=True) 
+                                                                    threshold=10, learning_rate=1, direct=True) 
         
         # metrics post
         dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)

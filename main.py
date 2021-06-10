@@ -85,7 +85,7 @@ hist_output = True                                  # do we want to have the his
 bin_width = .5                                      # Bin width in nm
 
 # The Image
-plot_img = True                                     # do we want to generate a plot
+plot_img = False                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 reference = False                                   # do we want to plot reference points
 threshold = 100                                     # threshold for reference points
@@ -105,12 +105,13 @@ ch2 = tf.Variable( locs_B, dtype = tf.float32)
 output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 
 # Initialize used variables
-ch2_map=tf.Variable(ch2)
 ShiftRotMod=None
 SplinesMod=None
+ch2_ShiftRot=None
+ch2_ShiftRotSpline=None
 
 # training loop ShiftRotMod
-ShiftRotMod, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
+ShiftRotMod, ch2_ShiftRot = run_optimization.run_optimization_ShiftRot(ch1, ch2, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
                                                             direct=direct)
 
@@ -119,15 +120,19 @@ if ShiftRotMod is not None:
     print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
 else:
     print('I: No shift or rotation mapping used')
-'''
+
 # training loop CatmullRomSplines
-SplinesMod, ch2_map = run_optimization.run_optimization_Splines(ch1, ch2_map, gridsize=gridsize, 
+SplinesMod, ch2_ShiftRotSpline = run_optimization.run_optimization_Splines(ch1, ch2_ShiftRot, gridsize=gridsize, 
                                                            threshold=10, maxDistance=30,
-                                                           learning_rate=1e-3, direct=direct)
-'''
+                                                           learning_rate=1e-4, direct=direct)
+
 print('Optimization Done!')
-print('I: Maximum mapping=',np.max( np.sqrt((ch2_map[:,0]-ch2[:,0])**2 +
-                                 (ch2_map[:,1]-ch2[:,1])**2 ) ),'[nm]')
+if ch2_ShiftRotSpline is not None:
+    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
+                                     (ch2_ShiftRotSpline[:,1]-ch2[:,1])**2 ) ),'[nm]')
+else:
+    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRot[:,0]-ch2[:,0])**2 +
+                                     (ch2_ShiftRot[:,1]-ch2[:,1])**2 ) ),'[nm]')
 
 #%% Metrics
 plt.close('all')
@@ -136,10 +141,13 @@ if hist_output:
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
     avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
-                                            ch2_map[:N0,:].numpy() , bin_width,
-                                            direct=direct)
+                                            ch2_ShiftRotSpline[:N0,:].numpy(), 
+                                            ch2_ShiftRot[:N0,:].numpy(),
+                                            bin_width, direct=direct)
     _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
-                              ch2_map[:N0,:].numpy(), direct=direct)
+                              ch2_ShiftRotSpline[:N0,:].numpy(),
+                              ch2_ShiftRot[:N0,:].numpy(),
+                              direct=direct)
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
 
@@ -147,7 +155,7 @@ if hist_output:
 if plot_img:
     ## Channel Generation
     channel1, channel2, channel2m, bounds = generate_image.generate_channel(
-        ch1, ch2, ch2_map, precision, max_deform)
+        ch1, ch2, ch2_ShiftRotSpline, precision, max_deform)
     
     
     ## Generating reference points
@@ -169,7 +177,7 @@ if plot_img:
 
 #%% Plotting the Grid
 if SplinesMod is not None:
-    output_fn.plot_grid(ch1, ch2, ch2_map, SplinesMod, gridsize=gridsize, d_grid = .05, 
+    output_fn.plot_grid(ch1, ch2, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .05, 
                         locs_markersize=10, CP_markersize=8, grid_markersize=3, 
                         grid_opacity=1, lines_per_CP=4)
 else:
