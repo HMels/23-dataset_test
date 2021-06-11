@@ -11,62 +11,17 @@ The script contains the next functions:
     
 
 The script also contains the next Model in the form of Classes
-- Parameterized_module_simple:      the Parameterized model for calculating the minimum entropy
-|- Shift
-|- Rotation
-
-
-- Polynomial_module:                the Polynomial model for calculating the minimum entropy
-|- Polynomial
+- ShiftRot:     The Shift and Rotation model for calculating the minimum entropy
+- Splines:      The Catmull Rom Splines model 
+- Pol3Mod:      The Polynomial model for calculating the minimum entropy
 '''
 
 import tensorflow as tf
 
-
 #%% functions
-@tf.autograph.experimental.do_not_convert
-def Rel_entropy(ch1,ch2):
-    '''
-    Parameters
-    ----------
-    ch1, ch2 : float32 array 
-        The array containing the [x1, x2] locations of all localizations.
-    idxlist : list
-        List containing per indice of ch1 the neighbours in ch2.
-
-    Returns
-    -------
-    rel_entropy : float32
-        The relative entropy as calculated by Cnossen 2021.
-
-    ''' 
-    N = ch1.shape[0]
-    expDist = tf.reduce_sum( tf.math.exp(
-            -1*KL_divergence(ch1, ch2) / N ) / N
-        , axis = 1)
-    return -1*tf.reduce_sum(tf.math.log( 
-        expDist
-        ))
-
+@tf.function
+def Rel_entropy(ch1, ch2):
     return tf.reduce_sum(tf.square(ch1-ch2))
-
-@tf.autograph.experimental.do_not_convert
-def KL_divergence(ch1, ch2):
-    '''
-    Parameters
-    ----------
-    ch1, ch2 : 2D float32 array
-        The array containing the [x1, x2] locations of the localizations i and j.
-
-    Returns
-    -------
-    D_KL : float array
-        The Kullback Leibler divergence as described by Cnossen 2021.
-
-    '''
-    typical_CRLB = 15   # CRLB is typically 0.15 pix in size
-    dist_squared = tf.square(ch1 - ch2)
-    return 0.5*tf.reduce_sum( dist_squared / typical_CRLB**2 , 2)
 
 
 #%% CatmullRomSplines
@@ -82,8 +37,16 @@ class CatmullRomSplines(tf.keras.Model):
         super().__init__(name=name)
 
         # The location of the ControlPoints. This will be trained
-        self.CP_locs = tf.Variable(CP_locs, dtype=tf.float32,
-                                   trainable=True, name='ControlPoints')  
+        self.CP_locs_trainable = tf.Variable(CP_locs[1:-1,1:-1,:], dtype=tf.float32,
+                                   trainable=True, name='ControlPointstrainable')  
+        self.CP_locs_untrainable_ax0 = tf.Variable(
+            [CP_locs[0,:,:][None], CP_locs[-1,:,:][None]],
+            trainable=False, name='ControlPointsUntrainable_ax0'
+            )
+        self.CP_locs_untrainable_ax1 = tf.Variable(
+            [CP_locs[1:-1,0,:][:,None], CP_locs[1:-1,-1,:][:,None]],
+            trainable=False, name='ControlPointsUntrainable_ax1'
+            )
         # The indices of which locs in ch2 belong to which CP_locs
         self.CP_idx = tf.Variable(CP_idx, dtype=tf.int32,
                                   trainable=False, name='ControlPointsIdx')
@@ -99,6 +62,8 @@ class CatmullRomSplines(tf.keras.Model):
         self.r = tf.Variable(ch2%1, trainable=False, dtype=tf.float32, 
                              name='Distance to ControlPoinst')
 
+    
+    
     @tf.function
     def call(self, ch1, ch2):
         ch2_mapped = self.transform_mat( self.r )
@@ -109,6 +74,7 @@ class CatmullRomSplines(tf.keras.Model):
     #@tf.function
     @tf.autograph.experimental.do_not_convert
     def transform_vec(self, x_input):
+        self.load_CPlocs()
         self.update_splines(self.CP_idx)        
         x = x_input[:,0][:,None]%1
         y = x_input[:,1][:,None]%1
@@ -140,6 +106,7 @@ class CatmullRomSplines(tf.keras.Model):
     #@tf.function
     @tf.autograph.experimental.do_not_convert
     def transform_mat(self, x_input):
+        self.load_CPlocs()
         self.update_splines(self.CP_idx_nn)        
         x = x_input[:,:,0][:,:,None]%1
         y = x_input[:,:,1][:,:,None]%1
@@ -195,6 +162,18 @@ class CatmullRomSplines(tf.keras.Model):
         return tf.reduce_sum(A_matrix, axis=2)
     
     
+    def load_CPlocs(self):
+        self.CP_locs = tf.concat([ 
+            self.CP_locs_untrainable_ax0[0],
+            tf.concat([ 
+                self.CP_locs_untrainable_ax1[0], 
+                self.CP_locs_trainable,
+                self.CP_locs_untrainable_ax1[1]
+                ],axis=1),
+            self.CP_locs_untrainable_ax0[1]
+            ],axis=0)
+        
+    
     #@tf.function
     def update_splines(self, idx):
         self.q00 = tf.gather_nd(self.CP_locs, idx+[-1,-1])  # q_k
@@ -216,8 +195,17 @@ class CatmullRomSplines(tf.keras.Model):
         self.q31 = tf.gather_nd(self.CP_locs, idx+[2,0])  # q_k
         self.q32 = tf.gather_nd(self.CP_locs, idx+[2,1])  # q_k
         self.q33 = tf.gather_nd(self.CP_locs, idx+[2,2])  # q_k
-   
-    
+        
+        
+    def reset_CP(self, CP_idx, CP_idx_nn=None):
+        # The indices of which locs in ch2 belong to which CP_locs
+        self.CP_idx = tf.Variable(CP_idx, dtype=tf.int32,
+                                  trainable=False, name='ControlPointsIdx')
+        self.CP_idx_nn = (tf.Variable(CP_idx_nn, dtype=tf.int32,
+                                  trainable=False, name='ControlPointsIdx')
+                          if CP_idx_nn is not None else {})
+
+
 #%% ShiftRotMod
 class ShiftRotMod(tf.keras.Model):
     '''
@@ -245,7 +233,8 @@ class ShiftRotMod(tf.keras.Model):
 
     @tf.function
     def call(self, ch1, ch2):
-        ch2_mapped =self.transform_mat(ch2)
+        ch2_mapped = self.transform_mat(ch2)
+        #ch2_mapped =self.transform_vec(ch2)
         return Rel_entropy(ch1, ch2_mapped)
     
     
@@ -277,3 +266,86 @@ class ShiftRotMod(tf.keras.Model):
         return tf.stack([x1, x2], axis =1 )
     
     
+#%% Poly3Mod  
+class Poly3Mod(tf.keras.Model):
+    '''
+    Main Layer for calculating the relative entropy of a certain deformation
+    ----------
+    - it takes the x_input, the [x1,x2] locations of all localizations
+    - gives it a certain polynomial deformation via the Polynomial Class
+    - calculates the relative entropy via Rel_entropy()    
+    '''
+    
+    def __init__(self, name = 'polynomial'): 
+        super().__init__(name=name) 
+        self.M1 = tf.Variable([[0.0, 0.0, 0.0],
+                               [1.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M1'
+                              )
+        self.M2 = tf.Variable([[0.0, 1.0, 0.0],
+                               [0.0, 0.0, 0.0],
+                               [0.0, 0.0, 0.0]],
+                              dtype=tf.float32, trainable=True, name = 'M2'
+                              )
+    
+    
+    @tf.function 
+    def call(self, ch1, ch2):
+        ch2_mapped = self.transform_mat(ch2)
+        #ch2_mapped = self.transform_vec(ch2)
+        return Rel_entropy(ch1, ch2_mapped)
+    
+    
+    @tf.function
+    def transform_vec(self, x_input):
+        y = tf.stack([
+            tf.concat([self.M1[0,0]*tf.ones([x_input.shape[0],1]), 
+                       self.M1[1,0]*x_input[:,0][:,None],
+                       self.M1[0,1]*x_input[:,1][:,None],
+                       self.M1[1,1]*(x_input[:,0]*x_input[:,1])[:,None],
+                       self.M1[2,1]*((x_input[:,0]**2)*x_input[:,1])[:,None],
+                       self.M1[2,2]*((x_input[:,0]*x_input[:,1])**2)[:,None],
+                       self.M1[1,2]*(x_input[:,0]*(x_input[:,1]**2))[:,None],
+                       self.M1[0,2]*(x_input[:,1]**2)[:,None],
+                       self.M1[2,0]*(x_input[:,0]**2)[:,None]
+                       ], axis = 1),
+            tf.concat([self.M2[0,0]*tf.ones([x_input.shape[0],1]), 
+                       self.M2[1,0]*x_input[:,0][:,None],
+                       self.M2[0,1]*x_input[:,1][:,None],
+                       self.M2[1,1]*(x_input[:,0]*x_input[:,1])[:,None],
+                       self.M2[2,1]*((x_input[:,0]**2)*x_input[:,1])[:,None],
+                       self.M2[2,2]*((x_input[:,0]*x_input[:,1])**2)[:,None],
+                       self.M2[1,2]*(x_input[:,0]*(x_input[:,1]**2))[:,None],
+                       self.M2[0,2]*(x_input[:,1]**2)[:,None],
+                       self.M2[2,0]*(x_input[:,0]**2)[:,None]
+                       ], axis = 1),
+            ], axis = 2)
+        return tf.reduce_sum(y, axis = 1)
+    
+    
+    @tf.function
+    def transform_mat(self, x_input):
+        y = tf.stack([
+            tf.concat([self.M1[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M1[1,0]*x_input[:,:,0][None],
+                       self.M1[0,1]*x_input[:,:,1][None],
+                       self.M1[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None],
+                       self.M1[2,1]*((x_input[:,:,0]**2)*x_input[:,:,1])[None],
+                       self.M1[2,2]*((x_input[:,:,0]*x_input[:,:,1])**2)[None],
+                       self.M1[1,2]*(x_input[:,:,0]*(x_input[:,:,1]**2))[None],
+                       self.M1[0,2]*(x_input[:,:,1]**2)[None],
+                       self.M1[2,0]*(x_input[:,:,0]**2)[None]
+                       ], axis = 0)[:,:,:,None],
+            tf.concat([self.M2[0,0]*tf.ones([1, x_input.shape[0], x_input.shape[1]]), 
+                       self.M2[1,0]*x_input[:,:,0][None],
+                       self.M2[0,1]*x_input[:,:,1][None],
+                       self.M2[1,1]*(x_input[:,:,0]*x_input[:,:,1])[None],
+                       self.M2[2,1]*((x_input[:,:,0]**2)*x_input[:,:,1])[None],
+                       self.M2[2,2]*((x_input[:,:,0]*x_input[:,:,1])**2)[None],
+                       self.M2[1,2]*(x_input[:,:,0]*(x_input[:,:,1]**2))[None],
+                       self.M2[0,2]*(x_input[:,:,1]**2)[None],
+                       self.M2[2,0]*(x_input[:,:,0]**2)[None]
+                       ], axis = 0)[:,:,:,None]
+            ], axis = 3)
+        return tf.reduce_sum(tf.reduce_sum(y, axis = 0), axis = 3)
