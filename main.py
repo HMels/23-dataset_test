@@ -43,9 +43,13 @@ from setup_image import Deform
 
 # Modules
 import generate_data
-import run_optimization
 import output_fn
 import generate_image
+
+# Models
+import Module_ShiftRot
+import Module_Splines
+import Module_Poly3
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -113,9 +117,9 @@ ch2_ShiftRotSpline=None
 
 #%% ShiftRotMod
 # training loop ShiftRotMod
-ShiftRotMod, ch2_ShiftRot = run_optimization.run_optimization_ShiftRot(ch1, ch2, maxDistance=30, 
+ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
-                                                            direct=direct)
+                                                            direct=True)
 
 if ShiftRotMod is not None: 
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
@@ -126,7 +130,7 @@ else:
 
 #%% Splines
 # training loop CatmullRomSplines
-SplinesMod, ch2_ShiftRotSpline = run_optimization.run_optimization_Splines(ch1, ch2_ShiftRot, gridsize=gridsize, 
+SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, gridsize=gridsize, 
                                                            threshold=10, maxDistance=30,
                                                            learning_rate=1e-4, direct=direct)
 
