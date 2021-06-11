@@ -34,7 +34,7 @@ dist_avg_N = np.zeros([N,N_it])
 t_lapsed = np.zeros([N,N_it])
 for i in range(N):
     for j in range(N_it):
-        print('i=',i,'/',N,' j=',j,'/',N_it)
+        print('i=',i+1,'/',N,' j=',j+1,'/',N_it)
         start = time.time()
         
         shift = np.array([ 20  , 20 ]) + 10*rnd.randn(2)                     # shift in nm

@@ -38,7 +38,7 @@ dist_avg = np.zeros([N,N_it])
 t_lapsed = np.zeros([N,N_it])
 for i in range(N):
     for j in range(N_it):
-        print('i=',i,'/',N,' j=',j,'/',N_it)
+        print('i=',i+1,'/',N,' j=',j+1,'/',N_it)
         start = time.time()
         
         deform = Deform(shift[:,i], 0.2*rnd.randn(1))
@@ -78,6 +78,8 @@ ax.set_title('Error vs Shift (direct, norm(0.2) rotation, N='+str(Nlocs1)+' and 
 ax.set_xlabel('Shift [nm]')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
+ax.set_yscale('log')
+
 
 p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':',label='Absolute Error of calculated Shift', color='blue')
 p2=ax.errorbar(shift[0,:]+.1, avg2, yerr=std2, ls=':', label='Average Error', color='green')

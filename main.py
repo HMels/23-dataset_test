@@ -77,7 +77,7 @@ scaling = np.array([1.0004,1.0003 ])                # scaling
 deform = Deform(shift, rotation, shear, scaling)
 
 ## Splines
-gridsize=200
+gridsize=100
 
 #%% output params
 # Histogram
@@ -100,16 +100,18 @@ ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
 
-#%% Minimum Entropy
+#%% Minimum Entropy ShiftRot
 # Error Message
 output_fn.Info_batch( np.max([locs_A.shape[0], locs_B.shape[0]]))
 
 # Initialize used variables
 ShiftRotMod=None
-SplinesMod=None
 ch2_ShiftRot=None
+SplinesMod=None
 ch2_ShiftRotSpline=None
 
+
+#%% ShiftRotMod
 # training loop ShiftRotMod
 ShiftRotMod, ch2_ShiftRot = run_optimization.run_optimization_ShiftRot(ch1, ch2, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
@@ -121,6 +123,8 @@ if ShiftRotMod is not None:
 else:
     print('I: No shift or rotation mapping used')
 
+
+#%% Splines
 # training loop CatmullRomSplines
 SplinesMod, ch2_ShiftRotSpline = run_optimization.run_optimization_Splines(ch1, ch2_ShiftRot, gridsize=gridsize, 
                                                            threshold=10, maxDistance=30,
@@ -133,6 +137,7 @@ if ch2_ShiftRotSpline is not None:
 else:
     print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRot[:,0]-ch2[:,0])**2 +
                                      (ch2_ShiftRot[:,1]-ch2[:,1])**2 ) ),'[nm]')
+    
 
 #%% Metrics
 plt.close('all')
@@ -143,10 +148,12 @@ if hist_output:
     avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
                                             ch2_ShiftRotSpline[:N0,:].numpy(), 
                                             ch2_ShiftRot[:N0,:].numpy(),
+                                            #None,
                                             bin_width, direct=direct)
     _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
                               ch2_ShiftRotSpline[:N0,:].numpy(),
                               ch2_ShiftRot[:N0,:].numpy(),
+                              #None,
                               direct=direct)
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
@@ -177,7 +184,7 @@ if plot_img:
 
 #%% Plotting the Grid
 if SplinesMod is not None:
-    output_fn.plot_grid(ch1, ch2, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .05, 
+    output_fn.plot_grid(ch1, ch2_ShiftRot, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .05, 
                         locs_markersize=10, CP_markersize=8, grid_markersize=3, 
                         grid_opacity=1, lines_per_CP=4)
 else:
