@@ -1,4 +1,3 @@
-
 # Minimum_Entropy.py
 '''
 This script is used to calculate the Mapping via the Minimum Entropy Method described by Cnossen2021
@@ -264,8 +263,8 @@ class ShiftRotMod(tf.keras.Model):
         x1 = ch_mapped[:,0]*cos - ch_mapped[:,1]*sin
         x2 = ch_mapped[:,0]*sin + ch_mapped[:,1]*cos
         return tf.stack([x1, x2], axis =1 )
-    
-    
+
+
 #%% Poly3Mod  
 class Poly3Mod(tf.keras.Model):
     '''

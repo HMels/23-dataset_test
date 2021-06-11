@@ -130,6 +130,7 @@ SplinesMod, ch2_ShiftRotSpline = run_optimization.run_optimization_Splines(ch1, 
                                                            threshold=10, maxDistance=30,
                                                            learning_rate=1e-4, direct=direct)
 
+
 print('Optimization Done!')
 if ch2_ShiftRotSpline is not None:
     print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
