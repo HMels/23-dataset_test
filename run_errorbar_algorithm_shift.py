@@ -12,7 +12,7 @@ from setup_image import Deform
 
 # Modules
 import generate_data
-import run_optimization
+import Module_ShiftRot
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -42,15 +42,17 @@ for i in range(N):
         start = time.time()
         
         deform = Deform(shift[:,i], 0.2*rnd.randn(1))
-        locs_A, locs_B = generate_data.generate_channels_random(Nlocs1, deform, error=error, Noise=Noise)
+        #locs_A, locs_B = generate_data.generate_beads_mimic(Nlocs1, deform, error=error, Noise=Noise)
+        locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=650, deform=deform,
+                                                           error=error, Noise=Noise)
     
         
         ch1 = tf.Variable( locs_A, dtype = tf.float32)
         ch2 = tf.Variable( locs_B, dtype = tf.float32)
         
         # training loop ShiftRotMod
-        mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2, maxDistance=30, 
-                                                                    threshold=10, learning_rate=1, direct=True) 
+        mods1, ch2_map = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
+                                                          threshold=10, learning_rate=1, direct=True) 
         
         # metrics post
         dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)

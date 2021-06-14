@@ -12,7 +12,7 @@ from setup_image import Deform
 
 # Modules
 import generate_data
-import run_optimization
+import Module_ShiftRot
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -27,11 +27,12 @@ Noise = 0.0                                         # percentage of noise
 
 N=20
 N_it = 10
-Nlocs = np.logspace(1,5,N).astype('int')
+Nlocs = np.logspace(0,3,N).astype('int')
 
 #%%
 dist_avg_N = np.zeros([N,N_it])
 t_lapsed = np.zeros([N,N_it])
+N_tot = np.zeros([N,N_it])
 for i in range(N):
     for j in range(N_it):
         print('i=',i+1,'/',N,' j=',j+1,'/',N_it)
@@ -41,26 +42,31 @@ for i in range(N):
         rotation = 0.2*rnd.randn(1)                 # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
         deform = Deform(shift, rotation)
         
-        locs_A, locs_B = generate_data.generate_channels_random(Nlocs[i], deform, error=error, Noise=Noise)
+        #locs_A, locs_B = generate_data.generate_beads_mimic(Nlocs[i], deform, error=error, Noise=Noise)
+        locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=Nlocs[i], deform=deform,
+                                                           error=error, Noise=Noise)
         
         ch1 = tf.Variable( locs_A, dtype = tf.float32)
         ch2 = tf.Variable( locs_B, dtype = tf.float32)
         ch2_map = tf.Variable(ch2)
         
         # training loop ShiftRotMod
-        mods1, ch2_map = run_optimization.run_optimization_ShiftRot(ch1, ch2_map, maxDistance=30, 
-                                                                    threshold=10, learning_rate=1, direct=True) 
+        mods1, ch2_map = Module_ShiftRot.run_optimization(ch1, ch2_map, maxDistance=30, 
+                                                          threshold=10, learning_rate=1, direct=True) 
         
         dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)
         dist_avg_N[i,j] = np.average(dist)
     
         t_lapsed[i,j]=time.time()-start
+        N_tot[i,j]=ch1.shape[0]
         del mods1, deform
     
 #%% 
 avg = np.average(dist_avg_N, axis=1)
 std = np.std(dist_avg_N, axis=1)
 t = np.average(t_lapsed, axis=1)
+N_avg = np.average(N_tot, axis=1)
+N_std = np.std(N_tot, axis=1)
 
 #%% Plotting
 fig, ax = plt.subplots()
@@ -70,8 +76,8 @@ ax.set_xlabel('Number of locs per Channel')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
 
-p1 = ax.errorbar(Nlocs, avg, yerr=std, ls=':', label='Average Error')
-p2 = ax2.bar(Nlocs, t, label='Average Time', width=0.3*Nlocs, align='center', alpha=0.55, 
+p1 = ax.errorbar(N_avg, avg, yerr=std, xerr=N_std, ls=':', label='Average Error')
+p2 = ax2.bar(N_avg, t, label='Average Time', width=0.3*Nlocs, align='center', alpha=0.55, 
         edgecolor='red', color='orange')
 ax.set_xscale('log')
 ax.legend(handles=[p1, p2], loc='best')

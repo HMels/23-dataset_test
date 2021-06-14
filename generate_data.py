@@ -6,7 +6,7 @@ import numpy.random as rnd
 
 import load_data
 
-#%% Generate Channel fuctions
+#%% Generate Channel 
 def generate_channels(path, deform, error=10, Noise=0.1, realdata=True, 
                            subset=1, pix_size=100):
     '''
@@ -67,10 +67,11 @@ def generate_channels(path, deform, error=10, Noise=0.1, realdata=True,
     return locs_A, locs_B
 
 
-def generate_channels_random(N, deform, error=10, Noise=0.1,
+#%% Random Generated mimic datasets
+def generate_beads_mimic(N, deform, error=10, Noise=0.1,
                       x1_params=[-500,500], x2_params=[-300,300]):
     '''
-    Generates a random channel
+    Generates a random channel that mimics the beads datset
 
     Parameters
     ----------
@@ -91,15 +92,17 @@ def generate_channels_random(N, deform, error=10, Noise=0.1,
         The actual locations of the localizations.
 
     '''
-    
+    ## channel A is uniformly random generated
     locs_A = rnd.rand(N,2)
     locs_A[:,0] = x1_params[0] + locs_A[:,0]*(x1_params[1]-x1_params[0]-50)
     locs_A[:,1] = x2_params[0] + locs_A[:,1]*(x2_params[1]-x2_params[0]-50)
     
+    ## Generate channel B and give it a localization error
     locs_B = locs_A.copy()
     locs_A = localization_error( locs_A, error )
     locs_B = localization_error( locs_B, error )
     
+    ## Image Parameters
     img = np.empty([2,2], dtype = float)
     img[0,0] = np.min(locs_A[:,0])
     img[0,1] = np.max(locs_A[:,0])
@@ -107,11 +110,100 @@ def generate_channels_random(N, deform, error=10, Noise=0.1,
     img[1,1] = np.max(locs_A[:,1])
     mid = (img[:,0] + img[:,1])/2
     
+    ## Center image
     locs_A[:,0] = locs_A[:,0] - mid[0]
     locs_B[:,0] = locs_B[:,0] - mid[0] 
     locs_A[:,1] = locs_A[:,1] - mid[1]
     locs_B[:,1] = locs_B[:,1] - mid[1]
     
+    ## Generate deformation and noise
+    locs_B = deform.deform(locs_B)
+    locs_A = generate_noise(locs_A, img, Noise)
+    locs_B = generate_noise(locs_B, img, Noise)
+    
+    return locs_A, locs_B
+
+
+def generate_HEL1_mimic(deform, error=10, Noise=.1, Nclust=650, points_per_cluster=250, 
+                        x1_params=[-25500,25500], x2_params=[-12500,12500], std_clust=70):
+    '''
+    Generates a mimic dataset based on the HEL1 dataset
+
+    Parameters
+    ----------
+    deform : Deform() class
+        The class containing the deformations of channel B.
+    error : float, optional
+        The error or the localizations to be generated. The default is 10nm.
+    Noise : float, optional
+        The percentage of uniform noise present. The default is 0.1.
+    Nclust : int, optional
+        The amount of clusters generated. The default is 650.
+    points_per_cluster : int, optional
+        The average amount of points that are generated in a cluster. The default is 250.
+    x1_params , x2_params : list, optional
+        List containing the x1 and x2 system sizes. The default is [-25500,25500] and [-12500,12500] nm.
+    std_clust : int, optional
+        The average standard deviation of a cluster. The default is 70.
+
+    Returns
+    -------
+    locs_A, locs_B : Nx2 matrix float
+        The actual locations of the localizations.
+
+    '''
+    
+    ## Generating the locations of the Clusters
+    clust_locs = rnd.rand(Nclust,2)
+    clust_locs[:,0] = clust_locs[:,0]*(x1_params[1]-x1_params[0]-50)
+    clust_locs[:,1] = clust_locs[:,1]*(x2_params[1]-x2_params[0]-50)
+    
+    
+    ## Generating the Cluster Points
+    locs_A = []
+    i=0
+    while i < Nclust:
+        sigma = std_clust+30*rnd.randn(2)                           # std gets a normal random deviation
+        N = int(round(points_per_cluster*(1+0.5*rnd.randn()),0))    # number of points also 
+        if N>0 and sigma[0]>0 and sigma[1]>0:                       # are the points realistic
+            locs_A.append(gauss_2d(clust_locs[i,:],sigma, N ))
+            i+=1
+            
+    ## Generating more points around the clusters
+    i=0
+    while i < Nclust:
+        sigma = 30*(std_clust+30*rnd.randn(2))
+        N = int(round(points_per_cluster*(1+0.5*rnd.randn())/5,0))
+        if N>0 and sigma[0]>0 and sigma[1]>0:
+            locs_A.append(gauss_2d(clust_locs[i,:],sigma, N ))
+            i+=1
+    locs_A = np.concatenate(locs_A, axis=0)                         # add all points together
+    
+    ## Fit every point inside image
+    locs_A[:,0] = locs_A[:,0]%(x1_params[1]-x1_params[0])
+    locs_A[:,1] = locs_A[:,1]%(x2_params[1]-x2_params[0])
+    
+    ## Generate channel B and give it a localization error
+    locs_B = locs_A.copy()
+    locs_A = localization_error( locs_A, error )
+    locs_B = localization_error( locs_B, error )
+    
+    ## Image parameters 
+    img = np.empty([2,2], dtype = float)
+    img[0,0] = np.min(locs_A[:,0])
+    img[0,1] = np.max(locs_A[:,0])
+    img[1,0] = np.min(locs_A[:,1])
+    img[1,1] = np.max(locs_A[:,1])
+    mid = (img[:,0] + img[:,1])/2
+    
+    
+    ## Center image
+    locs_A[:,0] = locs_A[:,0] - mid[0]
+    locs_B[:,0] = locs_B[:,0] - mid[0] 
+    locs_A[:,1] = locs_A[:,1] - mid[1]
+    locs_B[:,1] = locs_B[:,1] - mid[1]
+
+    ## Generate deformation and noise
     locs_B = deform.deform(locs_B)
     locs_A = generate_noise(locs_A, img, Noise)
     locs_B = generate_noise(locs_B, img, Noise)
@@ -171,3 +263,23 @@ def generate_noise(locs_, img, Noise):
     
     return np.append(locs_, np.squeeze( Noise_loc.transpose() ), 0)
     
+
+def gauss_2d(mu, sigma, N):
+    '''
+    Generates a 2D gaussian cluster
+    Parameters
+    ----------
+    mu : 2 float array
+        The mean location of the cluster.
+    sigma : 2 float array
+        The standard deviation of the cluster.
+    N : int
+        The number of localizations.
+    Returns
+    -------
+    Nx2 float Array
+        The [x1,x2] localizations .
+    '''
+    x1 = rnd.normal(mu[0], sigma[0], N)
+    x2 = rnd.normal(mu[1], sigma[1], N)
+    return np.array([x1, x2]).transpose()

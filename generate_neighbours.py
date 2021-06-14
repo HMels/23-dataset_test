@@ -6,7 +6,6 @@ Created on Thu Apr 29 14:05:40 2021
 """
 import numpy as np
 from photonpy import PostProcessMethods, Context
-import time
 
 
 def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
@@ -107,7 +106,7 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
     if idx1list == []: # generate the neighbours via kNN 
         print('\nError: No neighbours generated. Might be related to Threshold!',
               '\nNeighbours will be generated via KNN...')
-        k = 16
+        k = 32
         for i in range(locs_A.shape[0]):
             idx1list.append( (i * np.ones(k, dtype=int)) )
         idx2list = KNN(locs_A, locs_B, k)

@@ -60,13 +60,13 @@ p.mkdir(exist_ok=True)
 
 #%% Channel Generation
 ## Dataset
-realdata = True                                    # load real data or generate from real data
+realdata = False                                    # load real data or generate from real data
 direct = True                                       # True if data is coupled
-subset = 1                                         # percentage of original dataset
-pix_size = 1
+subset = .2                                         # percentage of original dataset
+pix_size = 100
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
 error = 0.0                                         # localization error in nm
@@ -78,10 +78,10 @@ shift = np.array([ 12  , 9 ])                       # shift in nm
 rotation = .5                                       # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
 shear = np.array([0.003, 0.002])                    # shear
 scaling = np.array([1.0004,1.0003 ])                # scaling 
-deform = Deform(shift, rotation, shear, scaling)
+deform = Deform(shift, rotation)#, shear, scaling)
 
 ## Splines
-gridsize=100
+gridsize=200
 
 #%% output params
 # Histogram
@@ -119,7 +119,7 @@ ch2_ShiftRotSpline=None
 # training loop ShiftRotMod
 ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
-                                                            direct=True)
+                                                            direct=False)
 
 if ShiftRotMod is not None: 
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
@@ -150,15 +150,15 @@ if hist_output:
     if realdata: N0 = ch1.shape[0]
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
-    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
+    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  #ch2[:N0,:].numpy(),
                                             ch2_ShiftRotSpline[:N0,:].numpy(), 
                                             ch2_ShiftRot[:N0,:].numpy(),
-                                            #None,
+                                            None,
                                             bin_width, direct=direct)
-    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
+    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  #ch2[:N0,:].numpy(), 
                               ch2_ShiftRotSpline[:N0,:].numpy(),
                               ch2_ShiftRot[:N0,:].numpy(),
-                              #None,
+                              None,
                               direct=direct)
     print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
@@ -189,9 +189,9 @@ if plot_img:
 
 #%% Plotting the Grid
 if SplinesMod is not None:
-    output_fn.plot_grid(ch1, ch2_ShiftRot, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .05, 
+    output_fn.plot_grid(ch1, ch2_ShiftRot, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .2, 
                         locs_markersize=10, CP_markersize=8, grid_markersize=3, 
-                        grid_opacity=1, lines_per_CP=4)
+                        grid_opacity=1, lines_per_CP=1)
 else:
     print('I: No Spline Mapping used')
 
