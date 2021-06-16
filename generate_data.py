@@ -7,7 +7,7 @@ import numpy.random as rnd
 import load_data
 
 #%% Generate Channel 
-def generate_channels(path, deform, error=10, Noise=0.1, realdata=True, 
+def generate_channels(path, deform, error=10, Noise=0.1, copy_channel=False, 
                            subset=1, pix_size=100):
     '''
     Parameters
@@ -17,11 +17,11 @@ def generate_channels(path, deform, error=10, Noise=0.1, realdata=True,
     deform : Deform() class
         class containing the deformation parameters and functions
     error : float, optional
-        Localization error in nm. The default is 10.
+        Localization error. The default is 10nm.
     Noise : float, optional
         The percentage of Noise per channel. The default is 0.1.
-    realdata : bool, optional
-        True if we want to use real data, False if we base our dataset on real data
+    copy_channel : bool, optional
+        Do we want to copy Channel A onto Channel B. The default is False.
         The default is True
     subset : float, optional
         The percentage of the original dataset we want to import. The default is 1
@@ -37,15 +37,16 @@ def generate_channels(path, deform, error=10, Noise=0.1, realdata=True,
 
     if subset == 1:     # load dataset
         locs_A, locs_B = load_data.load_data_localizations(
-            path, pix_size=pix_size,  alignment=realdata)
+            path, pix_size=pix_size,  alignment=(not copy_channel))
     else:               # load dataset subset
         locs_A, locs_B = load_data.load_data_subset(
-            path, subset, pix_size=pix_size, alignment=realdata)
+            path, subset, pix_size=pix_size, alignment=(not copy_channel))
         
-    if not realdata:    # generate channel based on dataset with induced error 
-        locs_B = locs_A.copy()
-        locs_A = localization_error( locs_A, error )
-        locs_B = localization_error( locs_B, error )
+    if copy_channel: locs_B = locs_A.copy()
+        
+    # generate localization error
+    locs_A = localization_error( locs_A, error )
+    locs_B = localization_error( locs_B, error )
     
     img = np.empty([2,2], dtype = float)
     img[0,0] = np.min(locs_A[:,0])
@@ -59,10 +60,10 @@ def generate_channels(path, deform, error=10, Noise=0.1, realdata=True,
     locs_A[:,1] = locs_A[:,1] - mid[1]
     locs_B[:,1] = locs_B[:,1] - mid[1]
     
-    if not realdata:      # Induce deformation and noise in Channel B
-        locs_B = deform.deform(locs_B)
-        locs_A = generate_noise(locs_A, img, Noise)
-        locs_B = generate_noise(locs_B, img, Noise)
+    locs_B = deform.deform(locs_B)
+    
+    locs_A = generate_noise(locs_A, img, Noise)
+    locs_B = generate_noise(locs_B, img, Noise)
     
     return locs_A, locs_B
 
@@ -229,13 +230,14 @@ def localization_error(locs, error = 10):
         The actual locations of the localizations.
 
     '''
-    N = len(locs[:,0])
-    locs[:,0] += rnd.normal(0, error, N)
-    locs[:,1] += rnd.normal(0, error, N)
+    if error != 0:
+        N = len(locs[:,0])
+        locs[:,0] += rnd.normal(0, error, N)
+        locs[:,1] += rnd.normal(0, error, N)
     return locs
         
 
-def generate_noise(locs_, img, Noise):
+def generate_noise(locs, img, Noise):
     '''
     Parameters
     ----------
@@ -252,16 +254,19 @@ def generate_noise(locs_, img, Noise):
         The actual locations of the localizations.
 
     '''
-    N_Noise = int(Noise * locs_.shape[0])
+    if Noise != 0:
+        N_Noise = int(Noise * locs.shape[0])
+        
+        img_size = img[:,1] - img[:,0] 
     
-    img_size = img[:,1] - img[:,0] 
-
-    Noise_loc = np.array([
-        img_size[0] * ( rnd.rand( N_Noise ) -0.5) ,
-        img_size[1] * ( rnd.rand( N_Noise ) -0.5)
-        ])
-    
-    return np.append(locs_, np.squeeze( Noise_loc.transpose() ), 0)
+        Noise_loc = np.array([
+            img_size[0] * ( rnd.rand( N_Noise ) -0.5) ,
+            img_size[1] * ( rnd.rand( N_Noise ) -0.5)
+            ])
+        
+        return np.append(locs, np.squeeze( Noise_loc.transpose() ), 0)
+    else: 
+        return locs
     
 
 def gauss_2d(mu, sigma, N):

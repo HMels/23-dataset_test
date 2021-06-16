@@ -8,12 +8,14 @@ from MinEntropy_fn import Rel_entropy
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, maxDistance=50, threshold=10, learning_rate=1, direct=False):
+def run_optimization(ch1, ch2, N_it=3000, maxDistance=50, threshold=10, learning_rate=1, direct=False):
     '''
     Parameters
     ----------
     ch1 ,ch2 : Nx2 Tensor
         Tensor containing the localizations of their channels.
+    N_it : int, optional
+        Number of iterations used in the training loop. The default 
     maxDistance : float32, optional
         The distance in which the Nearest Neighbours will be searched. 
         The default is 50nm.
@@ -57,7 +59,7 @@ def run_optimization(ch1, ch2, maxDistance=50, threshold=10, learning_rate=1, di
     
     ## Training Loop
     model_apply_grads = train_model.get_apply_grad_fn()
-    return model_apply_grads(ch1, ch2, mods, nn1, nn2)
+    return model_apply_grads(ch1, ch2, N_it, mods, nn1, nn2)
 
 
 #%% ShiftRotMod

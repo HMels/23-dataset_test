@@ -14,7 +14,7 @@ import tensorflow as tf
 from generate_neighbours import KNN
 
 #%% error handling of batches
-def Info_batch(N):
+def Info_batch(N1, N2, coupled):
     '''
     Handles the error if batches are sufficient large
 
@@ -34,13 +34,16 @@ def Info_batch(N):
     None.
 
     '''
+    N = np.max([N1, N2])
     print('\nI: the total system contains', N, ' points. The setup seems to be OK',
           '\nNote that for big N, batches shoud be used.\n')
+    if N1!=N2 and coupled:
+        print('\nError : System is coupled but Channel B contains',N2,'points and Channel A',N1)
     time.sleep(2)
 
 
 #%% Error distribution 
-def errorHist(ch1, ch2, ch2_map, ch2_map_temp=None, bin_width = 5, plot_on=True, direct=False):
+def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
     '''
     Generates a histogram showing the distribution of distances between coupled points
 
@@ -51,8 +54,8 @@ def errorHist(ch1, ch2, ch2_map, ch2_map_temp=None, bin_width = 5, plot_on=True,
     ch2 , ch2m : Nx2
         The localizations of channel 2 and the mapped channel 2. The indexes 
         of should be one-to-one with channel 1
-    bin_width : int, optional
-        The width of a bin. The default is 20.
+    nbins : list int, optional
+        The number of bins. The default is 30.
     plot_on : bool, optional
         Do we want to plot. The default is True.
     direct : bool, optional
@@ -70,63 +73,58 @@ def errorHist(ch1, ch2, ch2_map, ch2_map_temp=None, bin_width = 5, plot_on=True,
     if direct:
         dist1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
         dist2 = np.sqrt( np.sum( ( ch1 - ch2_map )**2, axis = 1) )
-        if ch2_map_temp is not None: dist3 = np.sqrt( np.sum( ( ch1 - ch2_map_temp )**2, axis = 1) )
         
         avg1 = np.average(dist1)
         avg2 = np.average(dist2)
-        if ch2_map_temp is not None: avg3 = np.average(dist3)
 
     # calculate the bars and averages via KNN method
     else:
         idx1 = KNN(ch1, ch2, 1)
         idx2 = KNN(ch1, ch2_map, 1)
-        if ch2_map_temp is not None: idx3 = KNN(ch1, ch2_map_temp, 1)
         
         dist1 = np.sqrt( np.sum( ( ch1 - ch2[idx1,:][:,0,:] )**2, axis = 1) )
         dist2 = np.sqrt( np.sum( ( ch1 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
-        if ch2_map_temp is not None:
-            dist3 = np.sqrt( np.sum( ( ch1 - ch2_map_temp[idx3,:][:,0,:] )**2, axis = 1) )
         
         avg1 = np.average(dist1)
         avg2 = np.average(dist2)
-        if ch2_map_temp is not None: avg3 = np.average(dist3)
             
     # Plotting
     if plot_on:
         # Creating the right bin sizes
-        nbins1 = round(( np.max(dist1) - np.min(dist1) ) / bin_width ,0).astype(int)
-        nbins2 = round(( np.max(dist2) - np.min(dist2) ) / bin_width ,0).astype(int)
-        if ch2_map_temp is not None:
-            nbins3 = round(( np.max(dist3) - np.min(dist3) ) / bin_width ,0).astype(int)
+        #nbins1 = round(( np.max(dist1) - np.min(dist1) ) / bin_width[0] ,0).astype(int)
+        #nbins2 = round(( np.max(dist2) - np.min(dist2) ) / bin_width[1] ,0).astype(int)
         
         # Plotting the histogram
-        plt.figure()
-        plt.title('Distribution of distances between neighbouring Localizations')
-        if ch2_map_temp is not None:
-            n3 = plt.hist(dist3, label='ShiftRot Mapped', alpha=.5, edgecolor='green', bins=nbins3)
-        else: n3=[0]
-        n1 = plt.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', bins=nbins1)
-        n2 = plt.hist(dist2, label='Mapped', alpha=.7, edgecolor='yellow', bins=nbins2)
+        fig, (ax1, ax2) = plt.subplots(2)
+        fig.suptitle('Distribution of distances between neighbouring Localizations')
+        n1 = ax1.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', bins=nbins)
+        n2 = ax2.hist(dist2, label='Mapped', alpha=.8, edgecolor='red', bins=nbins)
             
         # Plotting the averages as vlines
-        ymax = np.max([np.max(n1[0]), np.max(n2[0]), np.max(n3[0])]) + 5
-        plt.vlines(avg1, color='purple', ymin=0, ymax=ymax)
-        plt.vlines(avg2, color='green', ymin=0, ymax=ymax)
-        if ch2_map_temp is not None: plt.vlines(avg3, color='green', ymin=0, ymax=ymax)
+        ymax = np.max([np.max(n1[0]), np.max(n2[0])]) + 50
+        ax1.vlines(avg1, color='green', ymin=0, ymax=ymax)
+        ax2.vlines(avg2, color='green', ymin=0, ymax=ymax)
             
         # Some extra plotting parameters
-        plt.ylim([0,ymax])
-        plt.xlim(0)
-        plt.xlabel('distance [nm]')
-        plt.ylabel('# of localizations')
-        plt.legend()
-        plt.show()
+        ax1.set_title('Original')
+        ax1.set_ylim([0,ymax])
+        ax1.set_xlim(0)
+        ax1.set_xlabel('distance [nm]')
+        ax1.set_ylabel('# of localizations')
+                
+        ax2.set_title('Mapped')
+        ax2.set_ylim([0,ymax])
+        ax2.set_xlim(0)
+        ax2.set_xlabel('distance [nm]')
+        ax2.set_ylabel('# of localizations')
+        
+        fig.show()
     
     return avg1, avg2
 
 
 #%% Error distribution over FOV 
-def errorFOV(ch1, ch2, ch2_map, ch2_map_temp=None, plot_on=True, direct=False):
+def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
     '''
     Generates a FOV distribution of distances between coupled points
 
@@ -155,7 +153,6 @@ def errorFOV(ch1, ch2, ch2_map, ch2_map_temp=None, plot_on=True, direct=False):
         r = np.sqrt(np.sum(ch1**2,1))
         error1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
         error2 = np.sqrt( np.sum( ( ch1 - ch2_map )**2, axis = 1) )
-        if ch2_map_temp is not None: error3 = np.sqrt( np.sum( ( ch1 - ch2_map_temp )**2, axis = 1) )
         
         avg1 = np.average(error1)
         avg2 = np.average(error2)
@@ -164,23 +161,38 @@ def errorFOV(ch1, ch2, ch2_map, ch2_map_temp=None, plot_on=True, direct=False):
         r = np.sqrt(np.sum(ch1**2,1))
         idx1 = KNN(ch1, ch2, 1)
         idx2 = KNN(ch1, ch2_map, 1)
-        if ch2_map_temp is not None: idx3 = KNN(ch1, ch2_map_temp, 1)
         error1 = np.sqrt( np.sum( ( ch1 - ch2[idx1,:][:,0,:] )**2, axis = 1) )
         error2 = np.sqrt( np.sum( ( ch1 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
-        if ch2_map_temp is not None: error3 = np.sqrt( np.sum( ( ch1 - ch2_map_temp[idx3,:][:,0,:] )**2, axis = 1) )
         
         avg1 = np.average(error1)
         avg2 = np.average(error2)
         
-    if plot_on:
-        plt.figure()
-        plt.title('Distribution of error between neighbouring pairs over radius')
-        plt.plot(r, error1, 'b.', alpha=.3, label='Original error')
-        plt.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
-        if ch2_map_temp is not None: plt.plot(r, error3, 'y.', alpha=.3, label='ShiftRot error')
-        plt.xlabel('Distance from center [nm]')
-        plt.ylabel('Error [nm]')
-        plt.legend()
+    if plot_on:        
+        fig, (ax1, ax2) = plt.subplots(2)
+        fig.suptitle('Distribution of error between neighbouring pairs over radius')
+        ax1.plot(r, error1, 'b.', alpha=.4, label='Original error')
+        ax2.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
+        
+        # Plotting the averages as hlines
+        xmax= np.max(r)+50
+        ax1.hlines(avg1, color='green', xmin=0, xmax=xmax)
+        ax2.hlines(avg2, color='green', xmin=0, xmax=xmax)
+            
+        # Some extra plotting parameters
+        ax1.set_title('Original')
+        ax1.set_ylim(0)
+        ax1.set_xlim(0)
+        ax1.set_xlabel('FOV [nm]')
+        ax1.set_ylabel('Absolute Error')
+                
+        ax2.set_title('Mapped')
+        ax2.set_ylim(0)
+        ax2.set_xlim(0)
+        ax2.set_xlabel('FOV [nm]')
+        ax2.set_ylabel('Absolute Error')
+        
+        fig.show()
+
     
     return avg1, avg2
 
