@@ -68,23 +68,23 @@ def generate_channels(path, deform, error=10, Noise=0.1, realdata=True,
 
 
 #%% Random Generated mimic datasets
-def generate_beads_mimic(N, deform, error=10, Noise=0.1,
+def generate_beads_mimic(deform, N=216, error=10, Noise=0.1,
                       x1_params=[-500,500], x2_params=[-300,300]):
     '''
     Generates a random channel that mimics the beads datset
 
     Parameters
     ----------
-    N : int
-        The number of localizations per channel to be generated.
     deform : Deform() class
         The class containing the deformations of channel B.
+    N : int, optional
+        The number of localizations per channel to be generated. The default is 216.
     error : float, optional
-        The error or the localizations to be generated. The default is 10.
+        The error or the localizations to be generated. The default is 10nm.
     Noise : float, optional
         The percentage of uniform noise present. The default is 0.1.
     x1_params , x2_params : list, optional
-        List containing the x1 and x2 system sizes. The default is [-300,300].
+        List containing the x1 and x2 system sizes. The default is [-300,300] nm.
 
     Returns
     -------

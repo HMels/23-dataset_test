@@ -42,7 +42,7 @@ for i in range(N):
         rotation = 0.2*rnd.randn(1)                 # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
         deform = Deform(shift, rotation)
         
-        #locs_A, locs_B = generate_data.generate_beads_mimic(Nlocs[i], deform, error=error, Noise=Noise)
+        #locs_A, locs_B = generate_data.generate_beads_mimic(deform, Nlocs[i], error=error, Noise=Noise)
         locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=Nlocs[i], deform=deform,
                                                            error=error, Noise=Noise)
         
@@ -76,8 +76,8 @@ ax.set_xlabel('Number of locs per Channel')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
 
-p1 = ax.errorbar(N_avg, avg, yerr=std, xerr=N_std, ls=':', label='Average Error')
-p2 = ax2.bar(N_avg, t, label='Average Time', width=0.3*Nlocs, align='center', alpha=0.55, 
+p1 = ax.errorbar(N_avg, avg, yerr=std, xerr=N_std, ls=':', fmt='o', ecolor='black', capsize=5, label='Average Error')
+p2 = ax2.bar(N_avg*1.05, t, label='Average Time', width=20*Nlocs, align='center', alpha=0.55, 
         edgecolor='red', color='orange')
 ax.set_xscale('log')
 ax.legend(handles=[p1, p2], loc='best')

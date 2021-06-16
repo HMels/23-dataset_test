@@ -31,8 +31,8 @@ def get_apply_grad_fn():
             while not mods.endloop:
                 mods.Training_loop(ch1, ch2)                 # the training loop
                 i+=1     
-                if i%1000==0: print('i = ',i)
-                if i==25000:
+                if i%100==0: print('i = ',i)
+                if i==4000:
                     print('Error: maximum iterations reached. Restart the training loop')
                     break
                 
@@ -40,8 +40,8 @@ def get_apply_grad_fn():
             while not mods.endloop:
                 mods.Training_loop(nn1, nn2)                 # the training loop
                 i+=1     
-                if i%1000==0: print('i = ',i)
-                if i==25000:
+                if i%100==0: print('i = ',i)
+                if i==1000:
                     print('Error: maximum iterations reached. Restart the training loop')
                     break
                 
@@ -79,7 +79,7 @@ class Models():
             
         self.opt_init.apply_gradients(zip(self.grads, self.var))
         y1 = self.model(ch1, ch2)
-        self.Reject_fn(y1)
+        #self.Reject_fn(y1)
             
         
     def Reject_fn(self, y1):

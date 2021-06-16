@@ -42,7 +42,7 @@ for i in range(N):
         start = time.time()
         
         deform = Deform(shift[:,i], 0.2*rnd.randn(1))
-        #locs_A, locs_B = generate_data.generate_beads_mimic(Nlocs1, deform, error=error, Noise=Noise)
+        #locs_A, locs_B = generate_data.generate_beads_mimic(deform, Nlocs1, error=error, Noise=Noise)
         locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=650, deform=deform,
                                                            error=error, Noise=Noise)
     
@@ -80,10 +80,11 @@ ax.set_title('Error vs Shift (direct, norm(0.2) rotation, N='+str(Nlocs1)+' and 
 ax.set_xlabel('Shift [nm]')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
+ax2.set_yscale('log')
 ax.set_yscale('log')
 
 
-p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':',label='Absolute Error of calculated Shift', color='blue')
+p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':', fmt='o', ecolor='black', capsize=5,label='Absolute Error of calculated Shift', color='blue')
 p2=ax.errorbar(shift[0,:]+.1, avg2, yerr=std2, ls=':', label='Average Error', color='green')
 w = (shift[0,1]-shift[0,0])/4
 p3=ax2.bar(shift[0,:]+.2, t2, label='Average Time', width=w, align='edge', alpha=0.55, 

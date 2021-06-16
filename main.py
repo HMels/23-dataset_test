@@ -86,7 +86,7 @@ gridsize=200
 #%% output params
 # Histogram
 hist_output = True                                  # do we want to have the histogram output
-bin_width = .5                                      # Bin width in nm
+bin_width = 0.01                                      # Bin width in nm
 
 # The Image
 plot_img = False                                     # do we want to generate a plot
@@ -119,7 +119,7 @@ ch2_ShiftRotSpline=None
 # training loop ShiftRotMod
 ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
                                                             threshold=10, learning_rate=1,
-                                                            direct=False)
+                                                            direct=direct)
 
 if ShiftRotMod is not None: 
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
@@ -127,13 +127,14 @@ if ShiftRotMod is not None:
 else:
     print('I: No shift or rotation mapping used')
 
-
+'''
 #%% Splines
 # training loop CatmullRomSplines
 SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, gridsize=gridsize, 
                                                            threshold=10, maxDistance=30,
                                                            learning_rate=1e-4, direct=direct)
 
+'''
 
 print('Optimization Done!')
 if ch2_ShiftRotSpline is not None:
@@ -150,13 +151,13 @@ if hist_output:
     if realdata: N0 = ch1.shape[0]
     else: N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     
-    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  #ch2[:N0,:].numpy(),
-                                            ch2_ShiftRotSpline[:N0,:].numpy(), 
+    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
+                                            #ch2_ShiftRotSpline[:N0,:].numpy(), 
                                             ch2_ShiftRot[:N0,:].numpy(),
                                             None,
                                             bin_width, direct=direct)
-    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  #ch2[:N0,:].numpy(), 
-                              ch2_ShiftRotSpline[:N0,:].numpy(),
+    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
+                              #ch2_ShiftRotSpline[:N0,:].numpy(),
                               ch2_ShiftRot[:N0,:].numpy(),
                               None,
                               direct=direct)
