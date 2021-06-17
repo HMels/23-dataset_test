@@ -2,13 +2,13 @@
 
 import tensorflow as tf
 
-import generate_neighbours
-import train_model
-from MinEntropy_fn import Rel_entropy
+import MinEntropyModules.generate_neighbours as generate_neighbours
+import MinEntropyModules.train_model as train_model
+from MinEntropyModules.MinEntropy_fn import Rel_entropy
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, N_it=3000, maxDistance=50, threshold=10, learning_rate=1, direct=False):
+def run_optimization(ch1, ch2, N_it=3000, maxDistance=50, learning_rate=1, direct=False):
     '''
     Parameters
     ----------
@@ -19,9 +19,6 @@ def run_optimization(ch1, ch2, N_it=3000, maxDistance=50, threshold=10, learning
     maxDistance : float32, optional
         The distance in which the Nearest Neighbours will be searched. 
         The default is 50nm.
-    threshold : int, optional
-        The amount of rejections before ending the optimization loop.
-        The default is 10.
     learning_rate : float, optional
         The initial learning rate of our optimizer. The default is 1.
     direct : bool, optional
@@ -53,7 +50,7 @@ def run_optimization(ch1, ch2, N_it=3000, maxDistance=50, threshold=10, learning
         
     # The Model
     mods = train_model.Models(model=model, learning_rate=learning_rate, 
-                  opt=tf.optimizers.Adagrad, threshold=threshold)
+                  opt=tf.optimizers.Adagrad)
     
     ## Training Loop
     model_apply_grads = train_model.get_apply_grad_fn()

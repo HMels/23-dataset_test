@@ -2,7 +2,6 @@
 from photonpy import Dataset
 import numpy as np
 
-#Dataset.align()
 
 def load_data_GaussianSpots(path, alignment = True, zoom = 10, pix_size = 100):
     '''

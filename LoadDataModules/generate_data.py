@@ -4,7 +4,7 @@
 import numpy as np
 import numpy.random as rnd
 
-import load_data
+import LoadDataModules.load_data as load_data
 
 #%% Generate Channel 
 def generate_channels(path, deform, error=10, Noise=0.1, copy_channel=False, 

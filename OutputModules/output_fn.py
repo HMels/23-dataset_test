@@ -11,7 +11,7 @@ from copy import copy
 import tensorflow as tf
 
 
-from generate_neighbours import KNN
+from MinEntropyModules.generate_neighbours import KNN
 
 #%% error handling of batches
 def Info_batch(N1, N2, coupled):
@@ -181,13 +181,13 @@ def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
         # Some extra plotting parameters
         ax1.set_title('Original')
         ax1.set_ylim(0)
-        ax1.set_xlim(0)
+        ax1.set_xlim([0,xmax])
         ax1.set_xlabel('FOV [nm]')
         ax1.set_ylabel('Absolute Error')
                 
         ax2.set_title('Mapped')
         ax2.set_ylim(0)
-        ax2.set_xlim(0)
+        ax2.set_xlim([0,xmax])
         ax2.set_xlabel('FOV [nm]')
         ax2.set_ylabel('Absolute Error')
         

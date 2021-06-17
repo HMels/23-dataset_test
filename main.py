@@ -39,17 +39,17 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 # Classes
-from Deform import Deform
+from LoadDataModules.Deform import Deform
 
 # Modules
-import generate_data
-import output_fn
-import generate_image
+import LoadDataModules.generate_data as generate_data
+import OutputModules.output_fn as output_fn
+import OutputModules.generate_image as generate_image
 
 # Models
-import Module_ShiftRot
-import Module_Splines
-import Module_Poly3
+import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
+import MinEntropyModules.Module_Splines as Module_Splines
+import MinEntropyModules.Module_Poly3 as Module_Poly3
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -91,7 +91,7 @@ locs_A, locs_B = generate_data.generate_channels(
 
 #%% Minimum Entropy
 ## Params
-N_it = [500, 3000]                                 # The number of iterations in the training loop
+N_it = [500, 500]                                 # The number of iterations in the training loop
 gridsize = 200                                      # The size of the grid of the Splines
 
 ## In tf format
@@ -120,14 +120,15 @@ if ShiftRotMod is not None:
 else:
     print('I: No shift or rotation mapping used')
 
-'''
+
 #%% Splines
 # training loop CatmullRomSplines
-SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, N_it=N_it[1] gridsize=gridsize, 
-                                                           threshold=10, maxDistance=30,
-                                                           learning_rate=1e-4, direct=direct)
+SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, N_it=N_it[1],
+                                                                 gridsize=gridsize, threshold=10,
+                                                                 maxDistance=30, learning_rate=1e-3, 
+                                                                 direct=coupled)
 
-'''
+
 
 print('Optimization Done!')
 if ch2_ShiftRotSpline is not None:

@@ -1,4 +1,10 @@
-# run_errorbar_algorithm
+# run_errorbar_algorithm.py
+'''
+This program is written to investigate how the average error is dependend on the 
+initial deformations (shift) present in the dataset. It utilises both the HEL1 and 
+Beads mimics 
+'''
+
 # Packages
 import numpy as np
 from pathlib import Path
@@ -8,29 +14,29 @@ import numpy.random as rnd
 import time
 
 # Classes
-from setup_image import Deform
+from LoadDataModules.Deform import Deform
 
 # Modules
-import generate_data
-import Module_ShiftRot
+import LoadDataModules.generate_data as generate_data
+import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
 
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
-    
+
 
 #%% Error shift
 ## System Parameters
 error = 0.0                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
 
-N=40
+N=25
 N_it = 10
 Nlocs1 = 2000
-shift_max = 40
-shift = np.array([ np.linspace(0,shift_max,N), np.zeros(N)])
+shift_max = 2
+shift = np.array([ np.logspace(-1,shift_max,N), np.zeros(N)])
 
 #%%
 calc_shift = np.zeros([N,N_it])
@@ -80,14 +86,16 @@ ax.set_title('Error vs Shift (direct, norm(0.2) rotation, N='+str(Nlocs1)+' and 
 ax.set_xlabel('Shift [nm]')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
-ax2.set_yscale('log')
+#ax2.set_yscale('log')
 ax.set_yscale('log')
+ax.set_xscale('log')
 
 
-p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':', fmt='o', ecolor='black', capsize=5,label='Absolute Error of calculated Shift', color='blue')
-p2=ax.errorbar(shift[0,:]+.1, avg2, yerr=std2, ls=':', label='Average Error', color='green')
+p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':', fmt='', ecolor='blue', capsize=5,label='Absolute Error of calculated Shift', color='blue')
+p2=ax.errorbar(shift[0,:]*1.01, avg2, yerr=std2, ls=':', label='Average Error', color='green',fmt='', ecolor='green', capsize=5)
 w = (shift[0,1]-shift[0,0])/4
-p3=ax2.bar(shift[0,:]+.2, t2, label='Average Time', width=w, align='edge', alpha=0.55, 
+w = 0.1*shift[0,:]
+p3=ax2.bar(shift[0,:]*1.05, t2, label='Average Time', width=w, align='edge', alpha=0.55, 
            edgecolor='red', color='orange')
 ax.legend(handles=[p1, p2, p3], loc='best')
 ax.set_xlim([0,shift_max])

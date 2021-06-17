@@ -10,20 +10,22 @@ import matplotlib.pyplot as plt
 import tensorflow as tf
 
 # Classes
-from setup_image import Deform
+from LoadDataModules.Deform import Deform
 
 # Modules
-import generate_data
-import Module_Splines
-import output_fn
-import train_model
+import LoadDataModules.generate_data as generate_data
+import MinEntropyModules.Module_Splines as Module_Splines
+import OutputModules.output_fn as output_fn
+import MinEntropyModules.train_model as train_model
 
 '''
-_________________________________________________________________________________________
+_______________________________________________________________________________
 
-we start with the free version of CR splines
-_________________________________________________________________________________________
-
+Obiously the CatmullRomSplines model described here (the one with free borders)
+does not work for a bit. The one described by Module_Splines works just fine! 
+I will continue to work on the different run___algorithm.py files and test the 
+Splines on them
+_______________________________________________________________________________
 '''
 
 
@@ -191,7 +193,7 @@ class CatmullRomSplines(tf.keras.Model):
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, gridsize=50, threshold=10, maxDistance=50, 
+def run_optimization(ch1, ch2, N_it=3000, gridsize=50, threshold=10, maxDistance=50, 
                              learning_rate=1e-3, direct=False):
     '''
     Parameters
@@ -246,7 +248,8 @@ def run_optimization(ch1, ch2, gridsize=50, threshold=10, maxDistance=50,
     
     # The Training Function
     model_apply_grads = train_model.get_apply_grad_fn()
-    mods, ch2_input = model_apply_grads(ch1, ch2_input, mods, nn1, nn2)
+    mods, ch2_input = model_apply_grads(ch1=ch1_input, ch2=ch2_input, N_it=N_it,
+                                        mods=mods, nn1=None, nn2=None)
     return mods, ch2_input*gridsize
 
 
@@ -254,9 +257,13 @@ def run_optimization(ch1, ch2, gridsize=50, threshold=10, maxDistance=50,
 Noise=.0
 error=.0
 
-shift = np.array([ 20  , 20 ])     # shift in nm
-rotation = 0.2                     # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-deform = Deform(shift, rotation)
+deform = Deform(
+    deform_on=True,                         # True if we want to give channels deform by hand
+    #shift=np.array([ 12  , 9 ]),            # shift in nm
+    #rotation=.5,                            # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+    shear=np.array([0.003, 0.002]),         # shear
+    scaling=np.array([1.0004,1.0003 ])      # scaling
+    )
         
 #locs_A, locs_B = generate_data.generate_beads_mimic(Nlocs[i], deform, error=error, Noise=Noise)
 locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=10,deform=deform, error=error, Noise=Noise)
@@ -273,15 +280,15 @@ SplinesMod=None
 ch2_ShiftRotSpline=None
 
 # training loop CatmullRomSplines
+#'''
+SplinesMod, ch2_ShiftRotSpline = run_optimization(ch1, ch2, N_it=500, gridsize=gridsize, 
+                                                  maxDistance=30, learning_rate=1e-4,
+                                                  direct=direct)
 '''
-SplinesMod, ch2_ShiftRotSpline = run_optimization(ch1, ch2, gridsize=gridsize, 
-                                                           threshold=10, maxDistance=30,
-                                                           learning_rate=1e-2, direct=direct)
+SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2, N_it=500, gridsize=gridsize, 
+                                                                 maxDistance=30, learning_rate=1e-2,
+                                                                 direct=direct)
 '''
-SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2, gridsize=gridsize, 
-                                                           threshold=10, maxDistance=30,
-                                                           learning_rate=1e-3, direct=direct)
-
 
 print('Optimization Done!')
 
@@ -289,7 +296,7 @@ print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**
                                             (ch2_ShiftRotSpline[:,1]-ch2[:,1])**2 ) ),'[nm]')
 
 #%% Metrics
-#plt.close('all')
+plt.close('all')
 if True:
     N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
     

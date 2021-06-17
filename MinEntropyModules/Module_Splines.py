@@ -2,13 +2,13 @@
 
 import tensorflow as tf
 
-import generate_neighbours
-import train_model
-from MinEntropy_fn import Rel_entropy
+import MinEntropyModules.generate_neighbours as generate_neighbours
+import MinEntropyModules.train_model as train_model
+from MinEntropyModules.MinEntropy_fn import Rel_entropy
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, N_it=3000, gridsize=50, threshold=10, maxDistance=50, 
+def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, 
                              learning_rate=1e-3, direct=False):
     '''
     Parameters
@@ -19,9 +19,6 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, threshold=10, maxDistance
         Number of iterations used in the training loop. The default 
     gridsize : float32, optional
         The size of the grid splines
-    threshold : int, optional
-        The amount of rejections before ending the optimization loop.
-        The default is 10.
     maxDistance : float32, optional
         The distance in which the Nearest Neighbours will be searched. 
         The default is 50nm.
@@ -84,11 +81,11 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, threshold=10, maxDistance
     
     # The Model
     mods = train_model.Models(model=model, learning_rate=learning_rate, 
-                  opt=tf.optimizers.Adagrad, threshold=threshold)
+                  opt=tf.optimizers.Adagrad)
     
     # The Training Function
     model_apply_grads = train_model.get_apply_grad_fn()
-    mods, ch2_input = model_apply_grads(ch1, ch2_input, N_it, mods, nn1, nn2)
+    mods, ch2_input = model_apply_grads(ch1_input, ch2_input, N_it, mods, nn1, nn2)
     return mods, ch2_input*gridsize
 
 

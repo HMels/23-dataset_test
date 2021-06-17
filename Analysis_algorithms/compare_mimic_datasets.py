@@ -1,17 +1,17 @@
-# -*- coding: utf-8 -*-
+# compare_mimic_datasets.py
 """
-Created on Mon Jun 14 11:02:31 2021
+This program is mainly build to test the HEL1 and Beads Mimic dataset generators 
+on and compare them to eachother
+"""
 
-@author: Mels
-"""
 import numpy.random as rnd
 import numpy as np
 import matplotlib.pyplot as plt
 
-import generate_image
-import generate_data
-import load_data
-from setup_image import Deform
+import OutputModules.generate_image as generate_image
+import LoadDataModules.generate_data as generate_data
+import LoadDataModules.load_data as load_data
+from LoadDataModules.Deform import Deform
 
 
 #%% plot function

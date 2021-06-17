@@ -1,4 +1,11 @@
-# run_errorbar_algorithm
+# run_errorbar_algorithm.py
+'''
+This program is written to investigate how the average error is dependend on the 
+number of localizations present in the dataset. It utilises both the HEL1 and 
+Beads mimics 
+'''
+
+
 # Packages
 import numpy as np
 from pathlib import Path
@@ -8,17 +15,18 @@ import numpy.random as rnd
 import time
 
 # Classes
-from setup_image import Deform
+from LoadDataModules.Deform import Deform
 
 # Modules
-import generate_data
-import Module_ShiftRot
+import LoadDataModules.generate_data as generate_data
+import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
 
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
+
 
 #%% Error N
 ## System Parameters
@@ -76,7 +84,7 @@ ax.set_xlabel('Number of locs per Channel')
 ax.set_ylabel('Error [nm]')
 ax2.set_ylabel('time [s]')
 
-p1 = ax.errorbar(N_avg, avg, yerr=std, xerr=N_std, ls=':', fmt='o', ecolor='black', capsize=5, label='Average Error')
+p1 = ax.errorbar(N_avg, avg, yerr=std, xerr=N_std, ls=':', fmt='', ecolor='black', capsize=5, label='Average Error')
 p2 = ax2.bar(N_avg*1.05, t, label='Average Time', width=20*Nlocs, align='center', alpha=0.55, 
         edgecolor='red', color='orange')
 ax.set_xscale('log')
