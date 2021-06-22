@@ -8,8 +8,8 @@ from MinEntropyModules.MinEntropy_fn import Rel_entropy
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, 
-                             learning_rate=1e-3, direct=False):
+def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_rate=1e-3,
+                     direct=False, opt=tf.optimizers.Adagrad):
     '''
     Parameters
     ----------
@@ -27,6 +27,8 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50,
     direct : bool, optional
         Do we want to run the algorithm with pairs or with a neighbours algorithm.
         The default is False.
+    opt : tf.optimizers, optional
+        The Optimizer used. The default is tf.optimizers.Adagrad
 
     Returns
     -------
@@ -81,7 +83,7 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50,
     
     # The Model
     mods = train_model.Models(model=model, learning_rate=learning_rate, 
-                  opt=tf.optimizers.Adagrad)
+                  opt=opt)
     
     # The Training Function
     model_apply_grads = train_model.get_apply_grad_fn()

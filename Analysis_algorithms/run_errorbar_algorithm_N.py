@@ -46,13 +46,17 @@ for i in range(N):
         print('i=',i+1,'/',N,' j=',j+1,'/',N_it)
         start = time.time()
         
-        shift = np.array([ 20  , 20 ]) + 10*rnd.randn(2)                     # shift in nm
-        rotation = 0.2*rnd.randn(1)                 # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-        deform = Deform(shift, rotation)
+        deform = Deform(
+            deform_on=True,                         # True if we want to give channels deform by hand
+            shift = np.array([ 20  , 20 ]) + 10*rnd.randn(2),                     # shift in nm        
+            rotation = 0.2*rnd.randn(1),                 # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+            shear=np.array([0.003, 0.002])  + 0.001*rnd.randn(2),         # shear
+            scaling=np.array([1.0004,1.0003 ])+ 0.0001*rnd.randn(2)    # scaling
+            )
         
-        #locs_A, locs_B = generate_data.generate_beads_mimic(deform, Nlocs[i], error=error, Noise=Noise)
-        locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=Nlocs[i], deform=deform,
-                                                           error=error, Noise=Noise)
+        locs_A, locs_B = generate_data.generate_beads_mimic(deform, Nlocs[i], error=error, Noise=Noise)
+        #locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=Nlocs[i], deform=deform,
+        #                                                   error=error, Noise=Noise)
         
         ch1 = tf.Variable( locs_A, dtype = tf.float32)
         ch2 = tf.Variable( locs_B, dtype = tf.float32)

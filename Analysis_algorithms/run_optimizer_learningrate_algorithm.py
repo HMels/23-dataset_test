@@ -46,6 +46,8 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50,
     direct : bool, optional
         Do we want to run the algorithm with pairs or with a neighbours algorithm.
         The default is False.
+    opt : tf.optimizers, optional
+        The Optimizer used. The default is tf.optimizers.Adagrad
 
     Returns
     -------
@@ -77,8 +79,7 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50,
     
     
     # The Model
-    mods = train_model.Models(model=model, learning_rate=learning_rate, 
-                  opt=tf.optimizers.Adagrad)
+    mods = train_model.Models(model=model, learning_rate=learning_rate, opt=opt)
     
     # The Training Function
     model_apply_grads = train_model.get_apply_grad_fn()
@@ -89,39 +90,52 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50,
 ## System Parameters
 error = 0.0                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
+gridsize = 100
 
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 locs_A, locs_B = generate_data.generate_channels(
     path=path, deform=Deform(), error=error, Noise=Noise, copy_channel=False,
-    subset=.4,                               # the subset of the dataset we want to load
-    pix_size=100                              # size of a pixel in nm
+    subset=1,                               # the subset of the dataset we want to load
+    pix_size=1                              # size of a pixel in nm
     )
 
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
 
-#model=Module_ShiftRot.ShiftRotMod_direct()
-model=Module_Splines.CatmullRomSplines()
+ch1_input = tf.Variable(ch1/gridsize, trainable=False)
+ch2_input = tf.Variable(ch2/gridsize, trainable=False)
+        
+CP_idx = tf.cast(tf.stack(
+    [( ch2_input[:,0]-tf.reduce_min(tf.floor(ch2_input[:,0]))+1)//1 , 
+     ( ch2_input[:,1]-tf.reduce_min(tf.floor(ch2_input[:,1]))+1)//1 ], 
+    axis=1), dtype=tf.int32)
 
-learning_rates=[1]
+x1_grid = tf.range(tf.reduce_min(tf.floor(ch2_input[:,0])) -1,
+                   tf.reduce_max(tf.floor(ch2_input[:,0])) +3, 1)
+x2_grid =  tf.range(tf.reduce_min(tf.floor(ch2_input[:,1]))-1,
+                    tf.reduce_max(tf.floor(ch2_input[:,1])) +3, 1)
+CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
+
+#model=Module_ShiftRot.ShiftRotMod_direct()
+model = Module_Splines.CatmullRomSplines_direct(CP_locs, CP_idx, ch2_input)
+
+learning_rates=[1e-2]
 opts=[
       tf.optimizers.Adam,
       tf.optimizers.Adagrad,
       tf.optimizers.Adadelta,
       tf.optimizers.Adamax,
-      tf.optimizers.Ftrl,
-      tf.optimizers.Nadam,
-      tf.optimizers.SGD,
-      tf.optimizers.RMSprop
+      #tf.optimizers.Ftrl,
+      #tf.optimizers.Nadam
       ]
 
 #%%
 Ni=len(learning_rates)
 Nj=len(opts)
-N=40
-dx=1
+N=500
+dx=5
 dist_avg = np.empty([Ni,Nj,int(N/dx)+1])
 dist_avg[:,:]=np.nan
 
@@ -129,21 +143,21 @@ tf.config.run_functions_eagerly(True)
 for i in range(Ni):
     for j in range(Nj):
         # original distance
-        ch2_copy=tf.Variable(ch2)
-        dist = np.sqrt((ch2_copy-ch1)[:,0]**2 + (ch2_copy-ch1)[:,1]**2)
+        ch2_copy=tf.Variable(ch2_input)
+        dist = np.sqrt((ch2_copy-ch1_input)[:,0]**2 + (ch2_copy-ch1_input)[:,1]**2)
         dist_avg[i,j,0] = np.average(dist)
         del ch2_copy
         
         mods = train_model.Models(model=model, learning_rate=learning_rates[i], 
                           opt=opts[j], threshold=10)
         for k in range(N):
-            mods.Training_loop(ch1, ch2)
+            mods.Training_loop(ch1_input, ch2_input)
                 
             # Calculate the error
             if k%dx==0:
-                ch2_copy=tf.Variable(ch2)
+                ch2_copy=tf.Variable(ch2_input)
                 ch2_map = mods.model.transform_vec(ch2_copy)
-                dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)
+                dist = np.sqrt((ch2_map-ch1_input)[:,0]**2 + (ch2_map-ch1_input)[:,1]**2)
                 dist_avg[i,j,int(k/dx)+1] = np.average(dist)
                 del ch2_copy
                 
@@ -162,8 +176,8 @@ for i in range(Ni):
     plt.title(title)
     plt.xlabel('Iterations')
     plt.ylabel('Average Error')
-    for j in range(Nj):
-        plt.plot(x, dist_avg[i,j,:],label=str(opts[j]))
+    for j in range(4):
+        plt.plot(x, dist_avg[i,j,:]*gridsize,label=str(opts[j]))
     plt.legend()
     plt.xlim([0,N])
     plt.yscale('log')

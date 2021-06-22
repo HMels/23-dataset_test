@@ -31,74 +31,80 @@ p.mkdir(exist_ok=True)
 ## System Parameters
 error = 0.0                                         # localization error in nm
 Noise = 0.0                                         # percentage of noise
-
-N=25
 N_it = 10
-Nlocs1 = 2000
-shift_max = 2
-shift = np.array([ np.logspace(-1,shift_max,N), np.zeros(N)])
 
 #%%
-calc_shift = np.zeros([N,N_it])
-dist_avg = np.zeros([N,N_it])
-t_lapsed = np.zeros([N,N_it])
-for i in range(N):
-    for j in range(N_it):
-        print('i=',i+1,'/',N,' j=',j+1,'/',N_it)
-        start = time.time()
-        
-        deform = Deform(shift[:,i], 0.2*rnd.randn(1))
-        #locs_A, locs_B = generate_data.generate_beads_mimic(deform, Nlocs1, error=error, Noise=Noise)
-        locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=650, deform=deform,
-                                                           error=error, Noise=Noise)
+dist_avg = np.zeros([2,N_it]) # the first row contains the distance before, the second row the distance after
+std_avg = np.zeros([2,N_it])
+t_lapsed = np.zeros([N_it])
+for i in range(N_it):
+    ## generate data    
+    deform = Deform(
+        deform_on=True,                         # True if we want to give channels deform by hand
+        shift = np.array([ 20  , 20 ]) + 10*rnd.randn(2),                     # shift in nm        
+        rotation = 0.2*rnd.randn(1),                 # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
+        shear=np.array([0.003, 0.002])  + 0.001*rnd.randn(2),         # shear
+        scaling=np.array([1.0004,1.0003 ])+ 0.0001*rnd.randn(2)    # scaling
+        )
     
-        
-        ch1 = tf.Variable( locs_A, dtype = tf.float32)
-        ch2 = tf.Variable( locs_B, dtype = tf.float32)
-        
-        # training loop ShiftRotMod
-        mods1, ch2_map = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
-                                                          threshold=10, learning_rate=1, direct=True) 
-        
-        # metrics post
-        dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)
-        dist_avg[i,j] = np.average(dist)
-        calc_shift[i,j]=mods1.model.trainable_variables[0].numpy()[0]
-        
-        t_lapsed[i,j]=time.time()-start
-        del mods1, deform
+    locs_A, locs_B = generate_data.generate_beads_mimic(deform, 216, error=error, Noise=Noise)
+    #locs_A, locs_B = generate_data.generate_HEL1_mimic(Nclust=650, deform=deform,
+    #                                                   error=error, Noise=Noise)
+    
+    ch1 = tf.Variable( locs_A, dtype = tf.float32)
+    ch2 = tf.Variable( locs_B, dtype = tf.float32)
+    
+    
+    ## Metric Pre 
+    print('i=',i+1,'/',N_it)
+    dist = np.sqrt((ch2-ch1)[:,0]**2 + (ch2-ch1)[:,1]**2)
+    dist_avg[0,i] = np.average(dist)
+    std_avg[0,i] = np.std(dist)
+    start = time.time()
+    
+    # training loop ShiftRotMod
+    mods1, ch2_map = Module_ShiftRot.run_optimization(ch1, ch2, maxDistance=30, 
+                                                      threshold=10, learning_rate=1, direct=True) 
+    
+    # Metrics Post
+    t_lapsed[i]=time.time()-start
+    dist = np.sqrt((ch2_map-ch1)[:,0]**2 + (ch2_map-ch1)[:,1]**2)
+    dist_avg[1,i] = np.average(dist)
+    std_avg[1,i] = np.std(dist)
+    del mods1, deform, ch1, ch2, ch2_map
         
         
 #%% 
-error=np.zeros(calc_shift.shape)
-for i in range(calc_shift.shape[0]):
-    error[i,:]=np.abs(calc_shift[i,:]+shift[0,i])
-avg_shift = np.average(error, axis=1)
-std_shift = np.std(error, axis=1)
-avg2 = np.average(dist_avg, axis=1)
-std2 = np.std(dist_avg, axis=1)
-t2 = np.average(t_lapsed, axis=1)
+# Plotting the histogram
+fig, ax = plt.subplots(nrows = 2, ncols = 2)
+#fig.suptitle('The Average and Standard Deviation of the Error')
 
-#%%plotting
-fig, ax = plt.subplots()
-ax2 = ax.twinx()
-ax.set_title('Error vs Shift (direct, norm(0.2) rotation, N='+str(Nlocs1)+' and with N_it='+str(N_it)+') for Shift and Rotation')
-ax.set_xlabel('Shift [nm]')
-ax.set_ylabel('Error [nm]')
-ax2.set_ylabel('time [s]')
-#ax2.set_yscale('log')
-ax.set_yscale('log')
-ax.set_xscale('log')
+nbins=30
+for i in range(2):
+    
+    ## The Average Error
+    n = ax[0,i].hist(dist_avg[i,:], alpha=.8, edgecolor='red', bins=nbins)
+    ymax = np.max(n) + 50
+    ax[0,i].vlines(np.average(dist_avg[i,:]), color='green', ymin=0, ymax=ymax)
+                
+    # Some extra plotting parameters
+    ax[0,i].set_ylim([0,ymax])
+    ax[0,i].set_xlim(0)
+    ax[0,i].set_xlabel('Average Error [nm]')
+    ax[0,i].set_ylabel('# of Simulations')
+    
+    ## The Standard Deviation of the Error
+    n = ax[1,i].hist(std_avg[i,:], alpha=.8, edgecolor='red', bins=nbins)
+    ymax = np.max(n) + 50
+    ax[1,i].vlines(np.average(std_avg[i,:]), color='green', ymin=0, ymax=ymax)
+                
+    # Some extra plotting parameters
+    ax[1,i].set_ylim([0,ymax])
+    ax[1,i].set_xlim(0)
+    ax[1,i].set_xlabel('Std of the Error [nm]')
+    ax[1,i].set_ylabel('# of Simulations')
 
+ax[0,0].set_title('Original')
+ax[0,1].set_title('Mapped')
+fig.show()
 
-p1=ax.errorbar(shift[0,:], avg_shift, yerr=std_shift, ls=':', fmt='', ecolor='blue', capsize=5,label='Absolute Error of calculated Shift', color='blue')
-p2=ax.errorbar(shift[0,:]*1.01, avg2, yerr=std2, ls=':', label='Average Error', color='green',fmt='', ecolor='green', capsize=5)
-w = (shift[0,1]-shift[0,0])/4
-w = 0.1*shift[0,:]
-p3=ax2.bar(shift[0,:]*1.05, t2, label='Average Time', width=w, align='edge', alpha=0.55, 
-           edgecolor='red', color='orange')
-ax.legend(handles=[p1, p2, p3], loc='best')
-ax.set_xlim([0,shift_max])
-ax.hlines(0,0,shift_max, color='black', linewidth=0.5)
-ax.set_ylim(0)
-ax2.set_ylim(0,1.5*np.max(t2))

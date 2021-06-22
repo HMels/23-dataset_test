@@ -33,13 +33,13 @@ def get_apply_grad_fn():
             for i in range(N_it):
                 mods.Training_loop(ch1, ch2)                 # the training loop
                 i+=1     
-                if i%250==0: print('i = ',i)
+                if i%50==0: print('i = ',i,'/',N_it)
                 
         elif nn1 is not None and nn2 is not None:
             for i in range(N_it):
                 mods.Training_loop(nn1, nn2)                 # the training loop
                 i+=1     
-                if i%250==0: print('i = ',i)
+                if i%50==0: print('i = ',i,'/',N_it)
                 
                 
         print('completed in',i,' iterations')

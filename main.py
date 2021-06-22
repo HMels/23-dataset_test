@@ -45,6 +45,8 @@ from LoadDataModules.Deform import Deform
 import LoadDataModules.generate_data as generate_data
 import OutputModules.output_fn as output_fn
 import OutputModules.generate_image as generate_image
+import Model
+import Test_Model
 
 # Models
 import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
@@ -63,7 +65,7 @@ p.mkdir(exist_ok=True)
 coupled = True                               # True if data is coupled 
 path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
           'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
+#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
 
 ## System Parameters
 error = 0.0                                 # localization error in nm
@@ -91,8 +93,8 @@ locs_A, locs_B = generate_data.generate_channels(
 
 #%% Minimum Entropy
 ## Params
-N_it = [500, 500]                                 # The number of iterations in the training loop
-gridsize = 200                                      # The size of the grid of the Splines
+N_it = [400, 200]                                 # The number of iterations in the training loop
+gridsize = 100                                      # The size of the grid of the Splines
 
 ## In tf format
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
@@ -111,8 +113,8 @@ ch2_ShiftRotSpline=None
 #%% ShiftRotMod
 # training loop ShiftRotMod
 ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(ch1, ch2, N_it=N_it[0], maxDistance=30, 
-                                                            threshold=10, learning_rate=1,
-                                                            direct=coupled)
+                                                            learning_rate=1, direct=coupled,
+                                                            opt=tf.optimizers.Adagrad)
 
 if ShiftRotMod is not None: 
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
@@ -124,10 +126,9 @@ else:
 #%% Splines
 # training loop CatmullRomSplines
 SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, N_it=N_it[1],
-                                                                 gridsize=gridsize, threshold=10,
-                                                                 maxDistance=30, learning_rate=1e-3, 
-                                                                 direct=coupled)
-
+                                                                 gridsize=gridsize, maxDistance=30,
+                                                                 learning_rate=1e-2, direct=coupled,
+                                                                 opt=tf.optimizers.Adagrad)
 
 
 print('Optimization Done!')
@@ -161,7 +162,7 @@ if hist_output:
 
 #%% generating image
 # The Image
-plot_img = True                                     # do we want to generate a plot
+plot_img = False                                     # do we want to generate a plot
 reference = False                                   # do we want to plot reference points
 precision = 5                                       # precision of image in nm
 threshold = 100                                     # threshold for reference points
