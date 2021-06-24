@@ -4,6 +4,8 @@ This program is written to investigate how different optimizers converge
 in a model. It plots the average error vs the iterations. This program utilises 
 the HEL1 and Beads Mimics
 '''
+import sys
+sys.path.append('../')
 
 # Packages
 import numpy as np

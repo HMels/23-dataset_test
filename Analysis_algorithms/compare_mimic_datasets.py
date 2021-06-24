@@ -3,6 +3,8 @@
 This program is mainly build to test the HEL1 and Beads Mimic dataset generators 
 on and compare them to eachother
 """
+import sys
+sys.path.append('../')
 
 import numpy.random as rnd
 import numpy as np

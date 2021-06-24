@@ -7,6 +7,7 @@ but also deformations
 first I have to make img consistent
 """
 import numpy as np
+import numpy.random as rnd
 
 
 class Deform():
@@ -32,12 +33,19 @@ class Deform():
         - scaling_idef()
     '''
     
-    def __init__(self, shift=None, rotation=None, shear=None, scaling=None, deform_on=True):
-        self.shift = shift if shift is not None else np.array([0.,0.])
-        self.rotation = rotation if rotation is not None else 0.
-        self.shear = shear if shear is not None else np.array([0.,0.])
-        self.scaling = scaling if scaling is not None else np.array([1.,1.])
+    def __init__(self, deform_on=True, shift=None, rotation=None, shear=None, scaling=None,
+                 random_deform=False):
         self.deform_on = deform_on
+        if random_deform:
+            self.shift = np.array([ 20  , 20 ]) + 10*rnd.randn(2)       
+            self.rotation = 0.2*rnd.randn(1)
+            self.shear=np.array([0.003, 0.002])  + 0.001*rnd.randn(2)
+            self.scaling=np.array([1.0004,1.0003 ])+ 0.0001*rnd.randn(2)
+        else:
+            self.shift = shift if shift is not None else np.array([0.,0.])
+            self.rotation = rotation if rotation is not None else 0.
+            self.shear = shear if shear is not None else np.array([0.,0.])
+            self.scaling = scaling if scaling is not None else np.array([1.,1.])
         
         
     def deform(self, locs):

@@ -46,12 +46,8 @@ import LoadDataModules.generate_data as generate_data
 import OutputModules.output_fn as output_fn
 import OutputModules.generate_image as generate_image
 import Model
-import Test_Model
+import Cross_reference
 
-# Models
-import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
-import MinEntropyModules.Module_Splines as Module_Splines
-import MinEntropyModules.Module_Poly3 as Module_Poly3
 
 #exec(open("./setup.py").read())
 #%reload_ext tensorboard
@@ -59,146 +55,87 @@ import MinEntropyModules.Module_Poly3 as Module_Poly3
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
+plt.close('all')
+
 
 #%% Channel Generation
 ## Dataset
-coupled = True                               # True if data is coupled 
-path = [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
-          'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ]
-#path = [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ]
-
-## System Parameters
-error = 0.0                                 # localization error in nm
-Noise = 0.0                                 # percentage of noise
-
-## Channel B
-copy_channel=False
-deform = Deform(
-    deform_on=False,                         # True if we want to give channels deform by hand
-    shift=np.array([ 12  , 9 ]),            # shift in nm
-    rotation=.5,                            # angle of rotation in degrees (note that we do it times 100 so that the learning rate is correct relative to the shift)
-    #shear=np.array([0.003, 0.002]),         # shear
-    #scaling=np.array([1.0004,1.0003 ])      # scaling
-    )
+dataset=[ # [ Path, pix_size, coupled, spline gridsize, subset ]
+    [ [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ], 1, True, 100, 1 ],
+    [ [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
+     'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ], 100, False, 1000, .4 ]
+      ]
+ds = dataset[0]      # [0] for beads [1] for HEL1
 
 
+## Deformation and system parameters
+error = 0.0                                             # localization error in nm
+Noise = 0.0   
+deform = Deform(deform_on=False,                        # True if we want to give channels deform by hand
+                shift=np.array([ 12  , 9 ]),            # shift in nm 
+                rotation=.5,                            # angle of rotation in degrees
+                shear=np.array([0.003, 0.002]),         # shear
+                scaling=np.array([1.0004,1.0003 ]),     # scaling
+                random_deform=False                     # True if we want to randomly generate deform
+                )
+copy_channel = False
+    
+
+## Load Data
 locs_A, locs_B = generate_data.generate_channels(
-    path=path, deform=deform, error=error, Noise=Noise, copy_channel=copy_channel,
-    subset=1,                               # the subset of the dataset we want to load
-    pix_size=1                              # size of a pixel in nm
-    )
-
-#locs_A, locs_B = generate_data.generate_channels_random(216, deform, error=error, Noise=Noise)
+    path=ds[0], deform=deform, error=.0, Noise=.0,
+    copy_channel=copy_channel, subset=ds[4], pix_size=ds[1])
 
 
-#%% Minimum Entropy
-## Params
-N_it = [400, 200]                                 # The number of iterations in the training loop
-gridsize = 100                                      # The size of the grid of the Splines
+#%% Minimum Entropy Model
+## Cross Reference
+avg_trained, avg_crossref = Cross_reference.cross_ref(locs_A, locs_B, ds, plot_hist=True, plot_FOV=False)
+plt.draw()
+print('Trained Error=',avg_trained,'nm. Cross Reference Error=',avg_crossref,'nm')
+input("Press Enter to continue...")
 
-## In tf format
+
+#%% Run Model
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
+mods, ch2_mapped = Model.run_model(ch1, ch2, coupled=ds[2], N_it=[400, 200], 
+                                   learning_rate=[1,1e-2], gridsize = ds[3],
+                                   plot_grid=False)
 
-# Error Message
-output_fn.Info_batch( locs_A.shape[0], locs_B.shape[0], coupled)
-
-# Initialize used variables
-ShiftRotMod=None
-ch2_ShiftRot=None
-SplinesMod=None
-ch2_ShiftRotSpline=None
-
-
-#%% ShiftRotMod
-# training loop ShiftRotMod
-ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(ch1, ch2, N_it=N_it[0], maxDistance=30, 
-                                                            learning_rate=1, direct=coupled,
-                                                            opt=tf.optimizers.Adagrad)
-
-if ShiftRotMod is not None: 
-    print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
-    print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
-else:
-    print('I: No shift or rotation mapping used')
-
-
-#%% Splines
-# training loop CatmullRomSplines
-SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(ch1, ch2_ShiftRot, N_it=N_it[1],
-                                                                 gridsize=gridsize, maxDistance=30,
-                                                                 learning_rate=1e-2, direct=coupled,
-                                                                 opt=tf.optimizers.Adagrad)
-
-
-print('Optimization Done!')
-if ch2_ShiftRotSpline is not None:
-    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
-                                     (ch2_ShiftRotSpline[:,1]-ch2[:,1])**2 ) ),'[nm]')
-else:
-    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRot[:,0]-ch2[:,0])**2 +
-                                     (ch2_ShiftRot[:,1]-ch2[:,1])**2 ) ),'[nm]')
-    
 
 #%% Metrics
-# Histogram
-hist_output = True                                  # do we want to have the histogram output
+## Histogram
 nbins = 30                                          # Number of bins
-
-plt.close('all')
-if hist_output:
-    N0 = np.round(ch1.shape[0]/(1+Noise),0).astype(int)
+avg1, avg2, fig1, _ = output_fn.errorHist(ch1,  ch2, ch2_mapped, nbins=nbins, direct=ds[2])
+fig1.suptitle('Distribution of distances between neighbouring Localizations')
     
-    avg1, avg2 = output_fn.errorHist(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(),
-                                            #ch2_ShiftRotSpline[:N0,:].numpy(), 
-                                            ch2_ShiftRot[:N0,:].numpy(),
-                                            nbins=nbins, direct=coupled)
-    _, _ = output_fn.errorFOV(ch1[:N0,:].numpy(),  ch2[:N0,:].numpy(), 
-                              #ch2_ShiftRotSpline[:N0,:].numpy(),
-                              ch2_ShiftRot[:N0,:].numpy(),
-                              direct=coupled)
-    print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
+
+## FOV
+_, _, fig2, _ = output_fn.errorFOV(ch1,  ch2, ch2_mapped, direct=ds[2])
+fig2.suptitle('Distribution of error between neighbouring pairs over radius')
+    
+print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
 
 #%% generating image
 # The Image
-plot_img = False                                     # do we want to generate a plot
-reference = False                                   # do we want to plot reference points
+plot_img = True                                     # do we want to generate a plot
 precision = 5                                       # precision of image in nm
 threshold = 100                                     # threshold for reference points
 
 if plot_img:
     ## Channel Generation
     channel1, channel2, channel2m, bounds = generate_image.generate_channel(
-        ch1, ch2,
-        ch2_ShiftRot,
-        #ch2_ShiftRotSpline,
-        precision)
-    
-    
-    ## Generating reference points
-    ref_channel1 = generate_image.reference_clust(ch1, precision * 20, 
-                                                  bounds, threshold, reference)
+        ch1, ch2, ch2_mapped, precision)
 
-
-    # estimate original ch2
+    ## estimate original ch2
     ch1_ref = generate_data.localization_error(locs_A, error)
-    channel1_ref = generate_image.generate_matrix(
-        ch1_ref / precision, bounds
-        )
+    channel1_ref = generate_image.generate_matrix(ch1_ref / precision, bounds)
     
-    generate_image.plot_channel(channel1, channel2, channel2m, bounds,
-                            ref_channel1, precision, reference)
     
-    generate_image.plot_1channel(channel1, bounds, ref_channel1, precision, reference=False)
+    ## Plotting
+    generate_image.plot_channel(channel1, channel2, channel2m, bounds, precision)
+    generate_image.plot_1channel(channel1, bounds, precision)
 
 
-#%% Plotting the Grid
-if SplinesMod is not None:
-    output_fn.plot_grid(ch1, ch2_ShiftRot, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .2, 
-                        locs_markersize=10, CP_markersize=8, grid_markersize=3, 
-                        grid_opacity=1, lines_per_CP=1)
-else:
-    print('I: No Spline Mapping used')
-
-print('Done')
+print('\n Optimization Done')

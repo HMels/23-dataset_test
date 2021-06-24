@@ -9,7 +9,7 @@ from MinEntropyModules.MinEntropy_fn import Rel_entropy
 
 #%% run_optimization
 def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_rate=1e-3,
-                     direct=False, opt=tf.optimizers.Adagrad):
+                     direct=False, opt=tf.optimizers.Adagrad, sys_param=None):
     '''
     Parameters
     ----------
@@ -29,6 +29,9 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_
         The default is False.
     opt : tf.optimizers, optional
         The Optimizer used. The default is tf.optimizers.Adagrad
+    sys_params : list, optional
+        List containing the size of the system. The optional is None,
+        which means it will be calculated by hand
 
     Returns
     -------
@@ -37,24 +40,31 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_
     ch2 : Nx2 float Tensor
         Mapped version of ch2
 
-    '''   
+    '''  
     ch1_input = tf.Variable(ch1/gridsize, trainable=False)
     ch2_input = tf.Variable(ch2/gridsize, trainable=False)
-
+    
+    if sys_param is None:
+        x1_min = tf.reduce_min(tf.floor(ch2_input[:,0]))
+        x2_min = tf.reduce_min(tf.floor(ch2_input[:,1]))
+        x1_max = tf.reduce_max(tf.floor(ch2_input[:,0]))
+        x2_max = tf.reduce_max(tf.floor(ch2_input[:,1]))
+    else:
+        x1_min = tf.floor(sys_param[0,0]/gridsize)
+        x2_min = tf.floor(sys_param[0,1]/gridsize)
+        x1_max = tf.floor(sys_param[1,0]/gridsize)
+        x2_max = tf.floor(sys_param[1,1]/gridsize)
         
     CP_idx = tf.cast(tf.stack(
-        [( ch2_input[:,0]-tf.reduce_min(tf.floor(ch2_input[:,0]))+1)//1 , 
-         ( ch2_input[:,1]-tf.reduce_min(tf.floor(ch2_input[:,1]))+1)//1 ], 
+        [( ch2_input[:,0]-x1_min+1)//1 , ( ch2_input[:,1]-x2_min+1)//1 ], 
         axis=1), dtype=tf.int32)
         
     if direct:          # direct 
         nn1=None
         nn2=None
         
-        x1_grid = tf.range(tf.reduce_min(tf.floor(ch2_input[:,0])) -1,
-                       tf.reduce_max(tf.floor(ch2_input[:,0])) +3, 1)
-        x2_grid =  tf.range(tf.reduce_min(tf.floor(ch2_input[:,1]))-1,
-                            tf.reduce_max(tf.floor(ch2_input[:,1])) +3, 1)
+        x1_grid = tf.range(x1_min-1, x1_max+3, 1)
+        x2_grid = tf.range(x2_min-1, x2_max+3, 1)
         CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
         model = CatmullRomSplines_direct(CP_locs, CP_idx, ch2)
     
@@ -66,10 +76,9 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_
         #nn2 = ch2_input[:,None]
         nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
         
-        x1_grid = tf.range(tf.reduce_min(tf.floor(ch2_input[:,0])) -1,
-                           tf.reduce_max(tf.floor(ch2_input[:,0])) +3, 1)
-        x2_grid = tf.range(tf.reduce_min(tf.floor(ch2_input[:,1])) -1,
-                           tf.reduce_max(tf.floor(ch2_input[:,1])) +3, 1)
+        
+        x1_grid = tf.range(x1_min-1, x1_max+3, 1)
+        x2_grid = tf.range(x2_min-1, x2_max+3, 1)
         CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
         
         CP_idx_nn = tf.cast(tf.stack(
@@ -79,7 +88,6 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_
         
         model = CatmullRomSplines(CP_locs, CP_idx, ch2, CP_idx_nn)
 
-    
     
     # The Model
     mods = train_model.Models(model=model, learning_rate=learning_rate, 
@@ -132,7 +140,6 @@ class CatmullRomSplines(tf.keras.Model):
                              name='Distance to ControlPoinst')
         
 
-    
     @tf.function 
     def call(self, ch1, ch2):
         ch2_mapped = self.transform_mat(ch2)

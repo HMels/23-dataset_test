@@ -89,38 +89,37 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
         avg2 = np.average(dist2)
             
     # Plotting
-    if plot_on:
-        # Creating the right bin sizes
-        #nbins1 = round(( np.max(dist1) - np.min(dist1) ) / bin_width[0] ,0).astype(int)
-        #nbins2 = round(( np.max(dist2) - np.min(dist2) ) / bin_width[1] ,0).astype(int)
-        
+    if plot_on:        
         # Plotting the histogram
         fig, (ax1, ax2) = plt.subplots(2)
-        fig.suptitle('Distribution of distances between neighbouring Localizations')
-        n1 = ax1.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', bins=nbins)
-        n2 = ax2.hist(dist2, label='Mapped', alpha=.8, edgecolor='red', bins=nbins)
+        n1 = ax1.hist(dist1+.25, label='Original', alpha=.8, edgecolor='red', color='tab:blue', bins=nbins)
+        n2 = ax1.hist(dist2, label='Mapped', alpha=.8, edgecolor='red', color='tab:orange', bins=nbins)
+        n2 = ax2.hist(dist2, label='Mapped', alpha=.8, edgecolor='red', color='tab:orange', bins=nbins)
             
         # Plotting the averages as vlines
         ymax = np.max([np.max(n1[0]), np.max(n2[0])]) + 50
-        ax1.vlines(avg1, color='green', ymin=0, ymax=ymax)
-        ax2.vlines(avg2, color='green', ymin=0, ymax=ymax)
+        ax1.vlines(avg1, color='purple', ymin=0, ymax=ymax, label=('avg original = '+str(round(avg1,2))))
+        ax1.vlines(avg2, color='green', ymin=0, ymax=ymax, label=('avg mapped = '+str(round(avg2,2))))
+        ax2.vlines(avg2, color='green', ymin=0, ymax=ymax, label=('avg mapped = '+str(round(avg2,2))))
             
         # Some extra plotting parameters
-        ax1.set_title('Original')
+        ax1.set_title('Comparisson')
         ax1.set_ylim([0,ymax])
         ax1.set_xlim(0)
         ax1.set_xlabel('distance [nm]')
         ax1.set_ylabel('# of localizations')
+        ax1.legend()
                 
-        ax2.set_title('Mapped')
+        ax2.set_title('Zoomed in on Mapping Error')
         ax2.set_ylim([0,ymax])
         ax2.set_xlim(0)
         ax2.set_xlabel('distance [nm]')
         ax2.set_ylabel('# of localizations')
+        ax2.legend()
         
         fig.show()
     
-    return avg1, avg2
+    return avg1, avg2, fig, (ax1, ax2)
 
 
 #%% Error distribution over FOV 
@@ -169,37 +168,41 @@ def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
         
     if plot_on:        
         fig, (ax1, ax2) = plt.subplots(2)
-        fig.suptitle('Distribution of error between neighbouring pairs over radius')
         ax1.plot(r, error1, 'b.', alpha=.4, label='Original error')
+        ax1.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
         ax2.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
         
         # Plotting the averages as hlines
         xmax= np.max(r)+50
-        ax1.hlines(avg1, color='green', xmin=0, xmax=xmax)
-        ax2.hlines(avg2, color='green', xmin=0, xmax=xmax)
+        ax1.hlines(avg1, color='purple', xmin=0, xmax=xmax, label=('average original = '+str(round(avg1,2))))
+        ax1.hlines(avg2, color='green', xmin=0, xmax=xmax, label=('average mapped = '+str(round(avg2,2))))
+        ax2.hlines(avg2, color='green', xmin=0, xmax=xmax, label=('average mapped = '+str(round(avg2,2))))
             
         # Some extra plotting parameters
-        ax1.set_title('Original')
+        ax1.set_title('Comparisson')
         ax1.set_ylim(0)
         ax1.set_xlim([0,xmax])
         ax1.set_xlabel('FOV [nm]')
         ax1.set_ylabel('Absolute Error')
+        ax1.legend()
                 
-        ax2.set_title('Mapped')
+        ax2.set_title('Zoomed in on Mapping Error')
         ax2.set_ylim(0)
         ax2.set_xlim([0,xmax])
         ax2.set_xlabel('FOV [nm]')
         ax2.set_ylabel('Absolute Error')
+        ax2.legend()
         
         fig.show()
 
     
-    return avg1, avg2
+    return avg1, avg2, fig, (ax1, ax2)
 
 
 #%% Plotting the grid
 def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1, 
-              locs_markersize=10, CP_markersize=8, grid_markersize=3, grid_opacity=1): 
+              locs_markersize=10, CP_markersize=8, grid_markersize=3, grid_opacity=1,
+              sys_param=None): 
     '''
     Plots the grid and the shape of the grid in between the Control Points
 
@@ -225,6 +228,9 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
     lines_per_CP : int, optional
         The number of lines we want to plot in between the grids. 
         Works best if even. The default is 1.
+    sys_params : list, optional
+        List containing the size of the system. The optional is None,
+        which means it will be calculated by hand
 
     Returns
     -------
@@ -232,11 +238,16 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
 
     '''
     print('Plotting the Spline Grid...')
-    # system parameters
-    x1_min = tf.reduce_min(tf.floor(ch2[:,0]/gridsize))
-    x1_max = tf.reduce_max(tf.floor(ch2[:,0]/gridsize))
-    x2_min = tf.reduce_min(tf.floor(ch2[:,1]/gridsize))
-    x2_max = tf.reduce_max(tf.floor(ch2[:,1]/gridsize))
+    if sys_param is None:
+        x1_min = tf.reduce_min(tf.floor(ch2[:,0]/gridsize))
+        x2_min = tf.reduce_min(tf.floor(ch2[:,1]/gridsize))
+        x1_max = tf.reduce_max(tf.floor(ch2[:,0]/gridsize))
+        x2_max = tf.reduce_max(tf.floor(ch2[:,1]/gridsize))
+    else:
+        x1_min = tf.floor(sys_param[0,0]/gridsize)
+        x2_min = tf.floor(sys_param[0,1]/gridsize)
+        x1_max = tf.floor(sys_param[1,0]/gridsize)
+        x2_max = tf.floor(sys_param[1,1]/gridsize)
     
     # Creating the horizontal grid
     grid_tf = []

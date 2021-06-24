@@ -4,6 +4,8 @@ This program investigates how different optimizers converge according to differe
 learning rates in a model. It is mostly used to get a general idea, and not to be 
 used as a quantification as it does not work with averages
 '''
+import sys
+sys.path.append('../')
 
 # Packages
 import numpy as np

@@ -4,6 +4,9 @@ Created on Mon Jun 14 15:48:22 2021
 
 @author: Mels
 """
+import sys
+sys.path.append('../')
+
 # Packages
 import numpy as np
 import matplotlib.pyplot as plt

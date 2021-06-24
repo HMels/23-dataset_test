@@ -10,49 +10,34 @@ import time
 import matplotlib.pyplot as plt
 
 
-def plot_channel(channel1, channel2, channel3, bounds, ref_channel1, precision, 
-                 reference = True):
+def plot_channel(channel1, channel2, channel3, bounds,  precision):
     print('Plotting...')
     
     axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
     axis = np.reshape(axis, [1,4])[0]
     
-    if reference:
-        ref_channel1[:,0] = -1 * ref_channel1[:,0]
-    
     # plotting all channels
     plt.figure()
     plt.subplot(131)
     plt.imshow(channel1, extent = axis)
-    if reference:
-        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('original channel 1')
     
     plt.subplot(132)
     plt.imshow(channel2, extent = axis)
-    if reference:
-        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('original channel 2')
     
     plt.subplot(133)
     plt.imshow(channel3, extent = axis)
-    if reference:
-        plt.plot(ref_channel1[:,1], ref_channel1[:,0], 'r+', ls = '')
     plt.title('channel 2 mapped')
     
     
-def plot_1channel(channel1, bounds, ref_channel1, precision, reference=False):
+def plot_1channel(channel1, bounds, precision):
     axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
     axis = np.reshape(axis, [1,4])[0]
-    
-    if reference:
-        ref_channel1[:,0] = -1 * ref_channel1[:,0]
     
     # plotting all channels
     plt.figure()
     plt.imshow(np.rot90(channel1))
-    if reference:
-        plt.plot(ref_channel1[:,0], ref_channel1[:,1], 'r+', ls = '')
     plt.title('original channel 1')
 
 
@@ -128,53 +113,6 @@ def generate_matrix(locs , bounds):
             loc -= np.round(bounds[:,0],0).astype('int') # place the zero point on the left
             channel[loc[0]-1, loc[1]-1] = 1
     return channel
-
-
-def reference_clust(locs, precision, bounds, threshold = 50, reference=True):
-    '''
-    Generates the references, which will be placed on clusters in channel 1
-
-    Parameters
-    ----------
-    locs : Nx2 float Tensor
-        Localizations in pix.
-    precision : float
-        precision of our reference in nm.
-    axis : 4 float array
-        The boundaries of the total system in nm (also consists of other channels).
-    threshold : int, optional
-        The amount of locs per precision which will amount to a reference. 
-        The default is 50.
-    reference : bool, optional
-        The on and off button for generating reference points
-
-    Returns
-    -------
-    ch_ref : Mx2 float array
-        The reference points in nm.
-
-    '''
-    if reference:
-        print('Generating reference-points for clusters...')
-        
-        locs = locs / precision
-        size_img = np.round( (bounds[:,1] - bounds[:,0]) , 0).astype('int')
-        
-        channel = np.zeros([size_img[0], size_img[1]], dtype = int)
-        for i in range(locs.shape[0]):
-            loc = locs[i,:]
-            if isin_domain(loc, bounds):
-                loc -= bounds[:,0]                       # place the zero point on the left
-                loc = np.round(loc,0).astype('int')
-                channel[loc[0]-1, loc[1]-1] += 1
-        
-        ch_ref = ( np.argwhere(channel >= threshold) + bounds[:,0] + .5) * precision
-        
-        if ch_ref.shape[0] == 0:
-            print('No reference-points for clusters were generated!')
-        return ch_ref
-    else:
-        return None
 
 
 def isin_domain(pos, img):
