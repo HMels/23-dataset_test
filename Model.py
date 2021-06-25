@@ -8,6 +8,7 @@ _______________________________________________________________________________
 import tensorflow as tf
 import numpy as np
 from copy import copy
+import time
 
 
 # Modules
@@ -51,13 +52,12 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     ch2_mapped : tensor
         Tensor containing the [x1,x2] locations of the mapped dataset.
 
-    '''
-    print('Initializing Model...')
-        
+    '''        
     # Error Message
     output_fn.Info_batch( ch1.shape[0], ch2.shape[0], coupled)
     
     # Initialize used variables
+    start = time.time()
     ShiftRotMod=None
     ch2_ShiftRot=None
     SplinesMod=None
@@ -66,6 +66,7 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     
     #% ShiftRotMod
     # training loop ShiftRotMod
+    print('Running ShiftRot model...')
     ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(
         ch1, ch2, N_it=N_it[0], maxDistance=30, learning_rate=learning_rate[0],
         direct=coupled, opt=tf.optimizers.Adagrad
@@ -77,13 +78,14 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     
     #% Splines
     # training loop CatmullRomSplines
+    print('Running Splines model...')
     SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(
         ch1, ch2_ShiftRot, N_it=N_it[1], gridsize=gridsize, maxDistance=30, 
         learning_rate=learning_rate[1], direct=coupled,  opt=tf.optimizers.Adagrad,
         sys_param=sys_param
         )
     
-    print('Optimization Done!\nI: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
+    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
                                          (ch2_ShiftRotSpline[:,1]-ch2[:,1])**2 ) ),'[nm]')
        
     
@@ -94,7 +96,7 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
                             locs_markersize=10, CP_markersize=8, grid_markersize=3, 
                             grid_opacity=1, lines_per_CP=4, sys_param=sys_param)
         
-        
+    print('Optimization Done in ',round(time.time()-start),'seconds')
     return [ShiftRotMod, SplinesMod], ch2_ShiftRotSpline
         
 

@@ -118,6 +118,10 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
         ax2.legend()
         
         fig.show()
+    else:
+        fig=None
+        ax1=None
+        ax2=None
     
     return avg1, avg2, fig, (ax1, ax2)
 

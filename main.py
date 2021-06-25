@@ -46,7 +46,7 @@ import LoadDataModules.generate_data as generate_data
 import OutputModules.output_fn as output_fn
 import OutputModules.generate_image as generate_image
 import Model
-import Cross_reference
+import Cross_validate
 
 
 #exec(open("./setup.py").read())
@@ -89,10 +89,11 @@ locs_A, locs_B = generate_data.generate_channels(
 
 #%% Minimum Entropy Model
 ## Cross Reference
-avg_trained, avg_crossref = Cross_reference.cross_ref(locs_A, locs_B, ds, plot_hist=True, plot_FOV=False)
-plt.draw()
+avg_trained, avg_crossref = Cross_validate.cross_validate(locs_A, locs_B, coupled=ds[2], gridsize=ds[3],
+                                                      plot_hist=False, plot_FOV=False)
+
 print('Trained Error=',avg_trained,'nm. Cross Reference Error=',avg_crossref,'nm')
-input("Press Enter to continue...")
+#input("Press Enter to continue...")
 
 
 #%% Run Model
@@ -135,7 +136,7 @@ if plot_img:
     
     ## Plotting
     generate_image.plot_channel(channel1, channel2, channel2m, bounds, precision)
-    generate_image.plot_1channel(channel1, bounds, precision)
+    #generate_image.plot_1channel(channel1, bounds, precision)
 
 
 print('\n Optimization Done')

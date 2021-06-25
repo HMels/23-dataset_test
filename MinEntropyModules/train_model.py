@@ -25,21 +25,25 @@ def get_apply_grad_fn():
         ch2 : Nx2 float Tensor
             Mapped version of ch2
 
-        '''
-        print('Optimizing...')
-        
+        '''        
         i=0
         if nn1 is None and nn2 is None:
             for i in range(N_it):
                 mods.Training_loop(ch1, ch2)                 # the training loop
-                i+=1     
-                if i%50==0: print('i = ',i,'/',N_it)
+                i+=1
+                if i==int(N_it/4): print('25%')
+                if i==int(N_it/2): print('50%')
+                if i==int(3*N_it/4): print('75%')
+                if i==int(N_it): print('100%')
                 
         elif nn1 is not None and nn2 is not None:
             for i in range(N_it):
                 mods.Training_loop(nn1, nn2)                 # the training loop
-                i+=1     
-                if i%50==0: print('i = ',i,'/',N_it)
+                i+=1
+                if i==int(N_it/4): print('25%')
+                if i==int(N_it/2): print('50%')
+                if i==int(3*N_it/4): print('75%')
+                if i==int(N_it): print('100%')
                 
                 
         print('completed in',i,' iterations')
