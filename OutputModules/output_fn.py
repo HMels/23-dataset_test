@@ -10,7 +10,7 @@ import matplotlib.pyplot as plt
 from copy import copy
 import tensorflow as tf
 
-
+import OutputModules.generate_image as generate_image
 from MinEntropyModules.generate_neighbours import KNN
 
 #%% error handling of batches
@@ -43,7 +43,7 @@ def Info_batch(N1, N2, coupled):
 
 
 #%% Error distribution 
-def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
+def errorHist(ch1, ch2, ch2_map, ch1_copy2=None, nbins=30, plot_on=True, direct=False):
     '''
     Generates a histogram showing the distribution of distances between coupled points
 
@@ -54,6 +54,8 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
     ch2 , ch2m : Nx2
         The localizations of channel 2 and the mapped channel 2. The indexes 
         of should be one-to-one with channel 1
+    ch1_copy2 : Nx2, optional
+        The localizations that are coupled with ch2. The default is None
     nbins : list int, optional
         The number of bins. The default is 30.
     plot_on : bool, optional
@@ -68,11 +70,12 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
         The average distance between the channels
 
     '''
+    if ch1_copy2 is None: ch1_copy2=ch1
     
     # calculate the bars and averages via coupled method
     if direct:
         dist1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
-        dist2 = np.sqrt( np.sum( ( ch1 - ch2_map )**2, axis = 1) )
+        dist2 = np.sqrt( np.sum( ( ch1_copy2 - ch2_map )**2, axis = 1) )
         
         avg1 = np.average(dist1)
         avg2 = np.average(dist2)
@@ -80,10 +83,10 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
     # calculate the bars and averages via KNN method
     else:
         idx1 = KNN(ch1, ch2, 1)
-        idx2 = KNN(ch1, ch2_map, 1)
+        idx2 = KNN(ch1_copy2, ch2_map, 1)
         
         dist1 = np.sqrt( np.sum( ( ch1 - ch2[idx1,:][:,0,:] )**2, axis = 1) )
-        dist2 = np.sqrt( np.sum( ( ch1 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
+        dist2 = np.sqrt( np.sum( ( ch1_copy2 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
         
         avg1 = np.average(dist1)
         avg2 = np.average(dist2)
@@ -127,7 +130,7 @@ def errorHist(ch1, ch2, ch2_map, nbins=30, plot_on=True, direct=False):
 
 
 #%% Error distribution over FOV 
-def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
+def errorFOV(ch1, ch2, ch2_map, ch1_copy2=None, plot_on=True, direct=False):
     '''
     Generates a FOV distribution of distances between coupled points
 
@@ -138,8 +141,8 @@ def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
     ch2 , ch2m : Nx2
         The localizations of channel 2 and the mapped channel 2. The indexes 
         of should be one-to-one with channel 1
-    bin_width : int, optional
-        The width of a bin. The default is 20.
+    ch1_copy2 : Nx2, optional
+        The localizations that are coupled with ch2. The default is None
     plot_on : bool, optional
         Do we want to plot. The default is True.
     direct : bool, optional
@@ -152,32 +155,36 @@ def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
         The average distance between the channels
 
     '''
+    if ch1_copy2 is None: ch1_copy2=ch1
+    
     if direct:
-        r = np.sqrt(np.sum(ch1**2,1))
+        r1 = np.sqrt(np.sum(ch1**2,1))
+        r2 = np.sqrt(np.sum(ch1_copy2**2,1))
         error1 = np.sqrt( np.sum( ( ch1 - ch2 )**2, axis = 1) )
-        error2 = np.sqrt( np.sum( ( ch1 - ch2_map )**2, axis = 1) )
+        error2 = np.sqrt( np.sum( ( ch1_copy2 - ch2_map )**2, axis = 1) )
         
         avg1 = np.average(error1)
         avg2 = np.average(error2)
             
     else:
-        r = np.sqrt(np.sum(ch1**2,1))
+        r1 = np.sqrt(np.sum(ch1**2,1))
+        r2 = np.sqrt(np.sum(ch1_copy2**2,1))
         idx1 = KNN(ch1, ch2, 1)
-        idx2 = KNN(ch1, ch2_map, 1)
+        idx2 = KNN(ch1_copy2, ch2_map, 1)
         error1 = np.sqrt( np.sum( ( ch1 - ch2[idx1,:][:,0,:] )**2, axis = 1) )
-        error2 = np.sqrt( np.sum( ( ch1 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
+        error2 = np.sqrt( np.sum( ( ch1_copy2 - ch2_map[idx2,:][:,0,:] )**2, axis = 1) )
         
         avg1 = np.average(error1)
         avg2 = np.average(error2)
         
     if plot_on:        
         fig, (ax1, ax2) = plt.subplots(2)
-        ax1.plot(r, error1, 'b.', alpha=.4, label='Original error')
-        ax1.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
-        ax2.plot(r, error2, 'r.', alpha=.4, label='Mapped error')
+        ax1.plot(r1, error1, 'b.', alpha=.4, label='Original error')
+        ax1.plot(r2, error2, 'r.', alpha=.4, label='Mapped error')
+        ax2.plot(r2, error2, 'r.', alpha=.4, label='Mapped error')
         
         # Plotting the averages as hlines
-        xmax= np.max(r)+50
+        xmax= np.max((np.max(r1),np.max(r2)))+50
         ax1.hlines(avg1, color='purple', xmin=0, xmax=xmax, label=('average original = '+str(round(avg1,2))))
         ax1.hlines(avg2, color='green', xmin=0, xmax=xmax, label=('average mapped = '+str(round(avg2,2))))
         ax2.hlines(avg2, color='green', xmin=0, xmax=xmax, label=('average mapped = '+str(round(avg2,2))))
@@ -201,6 +208,51 @@ def errorFOV(ch1, ch2, ch2_map, plot_on=True, direct=False):
 
     
     return avg1, avg2, fig, (ax1, ax2)
+
+
+#%% Error distribution over FOV complete
+def errorFOV_complete(ch1, ch2, direct=False, precision = 100):
+    '''
+    Generates a FOV distribution of distances between coupled points
+
+    Parameters
+    ----------
+    ch1 , ch2 : Nx2
+        The localizations of channel 1 and 2.
+        of should be one-to-one with channel 1
+    direct : bool, optional
+        Do we want to run the algorithm with pairs or with a neighbours algorithm.
+        The default is False.
+
+    Returns
+    -------
+    avg1, avg2 : float
+        The average distance between the channels
+
+    '''
+    if direct:
+        error = tf.reduce_sum(ch1 - ch2, axis=1)
+    else:
+        idx1 = KNN(ch1, ch2, 1)
+        error = tf.reduce_sum(ch1 - ch2[idx1,:][:,0,:], axis=1)
+    
+    ch1 = ch1/precision
+    ch2 = ch2/precision
+        
+    bounds = np.empty([2,2], dtype = float) 
+    bounds[0,0] = np.min(ch1[:,0])
+    bounds[0,1] = np.max(ch1[:,0])
+    bounds[1,0] = np.min(ch1[:,1])
+    bounds[1,1] = np.max(ch1[:,1])
+    
+    error_mat = generate_image.generate_matrix(ch1, bounds, error=error)
+    
+    plt.figure()
+    plt.imshow(error_mat)
+    plt.colorbar()
+    
+    return error_mat
+        
 
 
 #%% Plotting the grid
@@ -253,12 +305,13 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
         x1_max = tf.floor(sys_param[1,0]/gridsize)
         x2_max = tf.floor(sys_param[1,1]/gridsize)
     
-    # Creating the horizontal grid
+    ## Creating the horizontal grid
     grid_tf = []
     marker = []
+    
     x1_grid = tf.range(x1_min, x1_max+1, d_grid)
-    x2_grid = x2_min * tf.ones(x1_grid.shape[0], dtype=tf.float32)
-    while x2_grid[0] < x2_max+.8:
+    x2_grid = (x2_min) * tf.ones(x1_grid.shape[0], dtype=tf.float32)
+    while x2_grid[0] < x2_max+1.8:
         # Mark the grid lines from the inbetween grid lines
         if x2_grid[0]%1<.05 or x2_grid[0]%1>.95:            marker.append(np.ones(x1_grid.shape))
         else:        marker.append(np.zeros(x1_grid.shape))
@@ -266,6 +319,7 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
         # Create grid
         grid_tf.append(tf.concat((x1_grid[:,None], x2_grid[:,None]), axis=1))
         x2_grid +=  np.round(1/lines_per_CP,2)
+        
     # Creating the right grid line
     grid_tf.append(tf.concat(( x1_grid[:,None], 
                               (x2_max+.99)*tf.ones([x1_grid.shape[0],1], dtype=tf.float32),
@@ -274,8 +328,8 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
     
     # Creating the vertical grid
     x2_grid = tf.range(x2_min, x2_max+1, d_grid)
-    x1_grid = x1_min * tf.ones(x2_grid.shape[0], dtype=tf.float32)
-    while x1_grid[0] < x1_max+.8:
+    x1_grid = (x1_min) * tf.ones(x2_grid.shape[0], dtype=tf.float32)
+    while x1_grid[0] < x1_max+1.8:
         # Mark the grid lines from the inbetween grid lines
         if x1_grid[0]%1<.05 or x1_grid[0]%1>.95:            marker.append(np.ones(x1_grid.shape))
         else:        marker.append(np.zeros(x1_grid.shape))
@@ -283,6 +337,7 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
         # Create grid
         grid_tf.append(tf.concat((x1_grid[:,None], x2_grid[:,None]), axis=1))
         x1_grid += np.round(1/lines_per_CP,2)
+        
     # Creating the upper grid line
     grid_tf.append(tf.concat(( (x1_max+.99)*tf.ones([x1_grid.shape[0],1], dtype=tf.float32),
                                   x2_grid[:,None]), axis=1))
@@ -292,8 +347,8 @@ def plot_grid(ch1, ch2, ch2_map, mods, gridsize=50, d_grid=.1, lines_per_CP=1,
     grid_tf = tf.concat(grid_tf, axis=0)
     marker = tf.concat(marker, axis=0)
     CP_idx = tf.cast(tf.stack(
-            [( grid_tf[:,0]-tf.reduce_min(tf.floor(grid_tf[:,0]))+1)//1 , 
-             ( grid_tf[:,1]-tf.reduce_min(tf.floor(grid_tf[:,1]))+1)//1 ], 
+            [( grid_tf[:,0]-tf.reduce_min(tf.floor(grid_tf[:,0]))+2)//1 , 
+             ( grid_tf[:,1]-tf.reduce_min(tf.floor(grid_tf[:,1]))+2)//1 ], 
             axis=1), dtype=tf.int32)
     
     # transforming the grid

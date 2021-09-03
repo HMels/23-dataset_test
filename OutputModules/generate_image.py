@@ -87,7 +87,7 @@ def generate_channel(locs1, locs2, locs3, precision = 10, max_deform = 150):
     return channel1, channel2, channel3, bounds
 
 
-def generate_matrix(locs , bounds):
+def generate_matrix(locs , bounds, error=None):
     '''
     Takes the localizations and puts them in a matrix
     Parameters
@@ -98,6 +98,8 @@ def generate_matrix(locs , bounds):
         The actual locations of the localizations.
     bounds : 2x2 matrix 
         containing the bounds of all three systems
+    error : Nx2 matrix, optional
+        If not None, it will generate the matrix with the error per localization given as height
         
     Returns
     -------
@@ -107,11 +109,20 @@ def generate_matrix(locs , bounds):
     size_img = np.round( (bounds[:,1] - bounds[:,0]) , 0).astype('int')
 
     channel = np.zeros([size_img[0], size_img[1]], dtype = int)
+    if error is not None: counter = np.zeros([size_img[0], size_img[1]], dtype = int)
     for i in range(locs.shape[0]):
         loc = np.round(locs[i,:],0).astype('int')
         if isin_domain(loc, bounds):
             loc -= np.round(bounds[:,0],0).astype('int') # place the zero point on the left
-            channel[loc[0]-1, loc[1]-1] = 1
+            if error is None:
+                channel[loc[0]-1, loc[1]-1] = 1
+            else:
+                channel[loc[0]-1, loc[1]-1] += error[i]
+                counter[loc[0]-1, loc[1]-1] +=1           # normalization to get average error per cell
+    if error is not None:
+        channel = np.where(channel==0, 'nan')
+        counter = np.where(counter==0, 'nan')
+        channel = channel/counter
     return channel
 
 

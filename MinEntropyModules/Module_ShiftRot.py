@@ -44,7 +44,7 @@ def run_optimization(ch1, ch2, N_it=200, maxDistance=50, learning_rate=1,
 
     else:               # Direct
         neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-        ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None)
+        ch1.numpy(), ch2.numpy(), maxDistance=maxDistance, threshold=None, k=16)
         #nn1 = ch1[:,None]
         nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
         #nn2 = ch2[:,None]
@@ -89,9 +89,9 @@ class ShiftRotMod(tf.keras.Model):
 
 
     @tf.function 
-    def call(self, ch1, ch2):
-        ch2_mapped = self.transform_mat(ch2)
-        return Rel_entropy(ch1, ch2_mapped)
+    def call(self, nn1, nn2):
+        nn2_mapped = self.transform_mat(nn2)
+        return Rel_entropy(nn1, nn2_mapped)
     
     
     @tf.function

@@ -13,7 +13,8 @@ import OutputModules.output_fn as output_fn
 
 
 #%% cross_validate
-def cross_validate(locs_A, locs_B, gridsize, coupled=False, plot_hist=True, plot_FOV=False):
+def cross_validate(locs_A, locs_B, gridsize, N_it=[400, 200], learning_rate=[1,1e-2],
+                   pix_size=100, coupled=False, plot_hist=True, plot_FOV=False):
     '''
     Cross validation
 
@@ -23,6 +24,10 @@ def cross_validate(locs_A, locs_B, gridsize, coupled=False, plot_hist=True, plot
         Array containing the localizations of both channels.
     gridsize : int
         The size of the spline grids.
+    N_it : List, optional
+        List containing how many iterations we train each model. The default is [400, 200].
+    learning_rate : List, optional
+        List containing the learning rates used per model. The default is [1,1e-2].
     coupled : bool, optional
         True if the dataset is coupled. The default is False
     plot_hist : bool, optional
@@ -44,8 +49,9 @@ def cross_validate(locs_A, locs_B, gridsize, coupled=False, plot_hist=True, plot
     
     ## Train model on first batch
     mods1, ch2_trained = Model.run_model(ch1_batch1, ch2_batch1, coupled=coupled,
-                                        N_it=[400, 200], learning_rate=[1,1e-2], 
-                                        gridsize=gridsize, plot_grid=False, sys_param=sys_param)
+                                        N_it=N_it, learning_rate=learning_rate, 
+                                        gridsize=gridsize, plot_grid=False, sys_param=sys_param, 
+                                        pix_size=pix_size)
     
     ch2_mapped = Model.transform_vec(mods1, ch2_batch2, gridsize, sys_param=sys_param)
     
@@ -53,10 +59,12 @@ def cross_validate(locs_A, locs_B, gridsize, coupled=False, plot_hist=True, plot
     ## Plot Hist
     nbins = 30                                          # Number of bins
     _, avg_trained, fig1, (ax11, ax12) = output_fn.errorHist(
-        ch1_batch1,  ch2_batch1, ch2_trained, nbins=nbins, direct=coupled, plot_on=plot_hist
+        ch1_batch1.numpy(),  ch2_batch1.numpy(), ch2_trained.numpy(),
+        nbins=nbins, direct=coupled, plot_on=plot_hist
         )
     _, avg_crossref, fig2, (ax21, ax22) = output_fn.errorHist(
-        ch1_batch2,  ch2_batch2, ch2_mapped, nbins=nbins, direct=coupled, plot_on=plot_hist
+        ch1_batch2.numpy(),  ch2_batch2.numpy(), ch2_mapped.numpy(),
+        nbins=nbins, direct=coupled, plot_on=plot_hist
         )
     if plot_hist: ## Changing figures
         fig1.suptitle('Error of trained dataset')
@@ -64,8 +72,10 @@ def cross_validate(locs_A, locs_B, gridsize, coupled=False, plot_hist=True, plot
         
     ## Plot FOV
     if plot_FOV:
-        _, _, fig1, (ax11, ax12) = output_fn.errorFOV(ch1_batch1,  ch2_batch1, ch2_trained, direct=coupled)
-        _, _, fig2, (ax21, ax22) = output_fn.errorFOV(ch1_batch2,  ch2_batch2, ch2_mapped, direct=coupled)
+        _, _, fig1, (ax11, ax12) = output_fn.errorFOV(ch1_batch1.numpy(),  ch2_batch1.numpy(),
+                                                      ch2_trained.numpy(), direct=coupled)
+        _, _, fig2, (ax21, ax22) = output_fn.errorFOV(ch1_batch2.numpy(),  ch2_batch2.numpy(),
+                                                      ch2_mapped, direct=coupled)
     
     return avg_trained, avg_crossref
 

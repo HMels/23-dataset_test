@@ -8,7 +8,7 @@ from MinEntropyModules.MinEntropy_fn import Rel_entropy
 
 
 #%% run_optimization
-def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_rate=1e-3,
+def run_optimization(ch1, ch2, N_it=200, gridsize=50, maxDistance=50, learning_rate=1e-3,
                      direct=False, opt=tf.optimizers.Adagrad, sys_param=None):
     '''
     Parameters
@@ -56,42 +56,38 @@ def run_optimization(ch1, ch2, N_it=3000, gridsize=50, maxDistance=50, learning_
         x2_max = tf.floor(sys_param[1,1]/gridsize)
         
     CP_idx = tf.cast(tf.stack(
-        [( ch2_input[:,0]-x1_min+1)//1 , ( ch2_input[:,1]-x2_min+1)//1 ], 
+        [( ch2_input[:,0]-x1_min+2)//1 , ( ch2_input[:,1]-x2_min+2)//1 ], 
         axis=1), dtype=tf.int32)
         
     if direct:          # direct 
         nn1=None
         nn2=None
         
-        x1_grid = tf.range(x1_min-1, x1_max+3, 1)
-        x2_grid = tf.range(x2_min-1, x2_max+3, 1)
+        x1_grid = tf.range(x1_min-2, x1_max+4, 1)
+        x2_grid = tf.range(x2_min-2, x2_max+4, 1)
         CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
         model = CatmullRomSplines_direct(CP_locs, CP_idx, ch2)
     
     else:               # Generate Neighbours
         neighbours_A, neighbours_B = generate_neighbours.find_bright_neighbours(
-        ch1_input.numpy(), ch2_input.numpy(), maxDistance=maxDistance/gridsize, threshold=None)
-        #nn1 = ch1_input[:,None]
+        ch1_input.numpy(), ch2_input.numpy(), maxDistance=maxDistance/gridsize, threshold=None, k=16)
         nn1 = tf.Variable( neighbours_A, dtype = tf.float32)
-        #nn2 = ch2_input[:,None]
         nn2 = tf.Variable( neighbours_B, dtype = tf.float32)
         
         
-        x1_grid = tf.range(x1_min-1, x1_max+3, 1)
-        x2_grid = tf.range(x2_min-1, x2_max+3, 1)
+        x1_grid = tf.range(x1_min-2, x1_max+4, 1)
+        x2_grid = tf.range(x2_min-2, x2_max+4, 1)
         CP_locs = tf.transpose(tf.stack(tf.meshgrid(x1_grid,x2_grid), axis=2), [1,0,2])
         
         CP_idx_nn = tf.cast(tf.stack(
-            [( nn2[:,:,0]-tf.reduce_min(tf.floor(ch2_input[:,0]))+1)//1 , 
-             ( nn2[:,:,1]-tf.reduce_min(tf.floor(ch2_input[:,1]))+1)//1 ], 
+            [( nn2[:,:,0]-x1_min+2)//1 , ( nn2[:,:,1]-x2_min+2)//1 ], 
             axis=2), dtype=tf.int32)  
         
         model = CatmullRomSplines(CP_locs, CP_idx, ch2, CP_idx_nn)
 
     
     # The Model
-    mods = train_model.Models(model=model, learning_rate=learning_rate, 
-                  opt=opt)
+    mods = train_model.Models(model=model, learning_rate=learning_rate, opt=opt)
     
     # The Training Function
     model_apply_grads = train_model.get_apply_grad_fn()
@@ -112,14 +108,14 @@ class CatmullRomSplines(tf.keras.Model):
         super().__init__(name=name)
 
         # The location of the ControlPoints. This will be trained
-        self.CP_locs_trainable = tf.Variable(CP_locs[1:-1,1:-1,:], dtype=tf.float32,
+        self.CP_locs_trainable = tf.Variable(CP_locs[2:-2,2:-2,:], dtype=tf.float32,
                                    trainable=True, name='ControlPointstrainable')  
         self.CP_locs_untrainable_ax0 = tf.Variable(
-            [CP_locs[0,:,:][None], CP_locs[-1,:,:][None]],
+            [CP_locs[:2,:,:][None], CP_locs[-2:,:,:][None]],
             trainable=False, name='ControlPointsUntrainable_ax0'
             )
         self.CP_locs_untrainable_ax1 = tf.Variable(
-            [CP_locs[1:-1,0,:][:,None], CP_locs[1:-1,-1,:][:,None]],
+            [CP_locs[2:-2,:2,:][:,None], CP_locs[2:-2,-2:,:][:,None]],
             trainable=False, name='ControlPointsUntrainable_ax1'
             )
         
@@ -139,12 +135,11 @@ class CatmullRomSplines(tf.keras.Model):
         self.r = tf.Variable(ch2%1, trainable=False, dtype=tf.float32, 
                              name='Distance to ControlPoinst')
         
-
-    @tf.function 
-    def call(self, ch1, ch2):
-        ch2_mapped = self.transform_mat(ch2)
-        return Rel_entropy(ch1, ch2_mapped)
     
+    @tf.function 
+    def call(self, nn1, nn2):
+        nn2_mapped = self.transform_mat(nn2)
+        return Rel_entropy(nn1, nn2_mapped)
     
     #@tf.function
     @tf.autograph.experimental.do_not_convert

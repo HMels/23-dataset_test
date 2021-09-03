@@ -126,7 +126,7 @@ def generate_beads_mimic(deform, N=216, error=10, Noise=0.1,
 
 
 def generate_HEL1_mimic(deform, error=10, Noise=.1, Nclust=650, points_per_cluster=250, 
-                        x1_params=[-25500,25500], x2_params=[-12500,12500], std_clust=70):
+                        x1_params=[-255,255], x2_params=[-125,125], std_clust=7):
     '''
     Generates a mimic dataset based on the HEL1 dataset
 
@@ -143,7 +143,7 @@ def generate_HEL1_mimic(deform, error=10, Noise=.1, Nclust=650, points_per_clust
     points_per_cluster : int, optional
         The average amount of points that are generated in a cluster. The default is 250.
     x1_params , x2_params : list, optional
-        List containing the x1 and x2 system sizes. The default is [-25500,25500] and [-12500,12500] nm.
+        List containing the x1 and x2 system sizes. The default is [-255,255] and [-125,125] nm.
     std_clust : int, optional
         The average standard deviation of a cluster. The default is 70.
 

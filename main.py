@@ -31,6 +31,8 @@ Together with the function:
 
 It is optional to also run a cross-correlation program
 """
+import sys
+sys.path.append('../')
 
 # Packages
 import numpy as np
@@ -55,17 +57,20 @@ import Cross_validate
 p = Path('dataset_test')
 p.mkdir(exist_ok=True)
 
-plt.close('all')
+#plt.close('all')
 
 
 #%% Channel Generation
 ## Dataset
-dataset=[ # [ Path, pix_size, coupled, spline gridsize, subset ]
-    [ [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ], 1, True, 100, 1 ],
+dataset=[ # [ Path, pix_size, coupled, subset,
+          #   spline gridsize, N_it, learning_rate ]
+    [ [ 'C:/Users/Mels/Documents/example_MEP/mol115_combined_clusters.hdf5' ], 1, True, 1,
+         100, [400, 200], [1,1e-2] ],
     [ [ 'C:/Users/Mels/Documents/example_MEP/ch0_locs.hdf5' , 
-     'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ], 100, False, 1000, .4 ]
+     'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ], 1, False, .025, 
+         100, [400, 200], [1,1e-2] ]
       ]
-ds = dataset[0]      # [0] for beads [1] for HEL1
+ds = dataset[1]      # [0] for beads [1] for HEL1
 
 
 ## Deformation and system parameters
@@ -84,45 +89,48 @@ copy_channel = False
 ## Load Data
 locs_A, locs_B = generate_data.generate_channels(
     path=ds[0], deform=deform, error=.0, Noise=.0,
-    copy_channel=copy_channel, subset=ds[4], pix_size=ds[1])
+    copy_channel=copy_channel, subset=ds[3], pix_size=ds[1])
 
 
 #%% Minimum Entropy Model
-## Cross Reference
-avg_trained, avg_crossref = Cross_validate.cross_validate(locs_A, locs_B, coupled=ds[2], gridsize=ds[3],
-                                                      plot_hist=False, plot_FOV=False)
-
-print('Trained Error=',avg_trained,'nm. Cross Reference Error=',avg_crossref,'nm')
+## Cross validate
+if False:
+    avg_trained, avg_crossref = Cross_validate.cross_validate(locs_A, locs_B, pix_size=ds[1],
+                                                              coupled=ds[2], gridsize=ds[4],
+                                                              N_it=ds[5], learning_rate=ds[6], 
+                                                              plot_hist=True, plot_FOV=False)
+    
+    print('Trained Error=',avg_trained,'nm. Cross Reference Error=',avg_crossref,'nm')
 #input("Press Enter to continue...")
 
 
 #%% Run Model
 ch1 = tf.Variable( locs_A, dtype = tf.float32)
 ch2 = tf.Variable( locs_B, dtype = tf.float32)
-mods, ch2_mapped = Model.run_model(ch1, ch2, coupled=ds[2], N_it=[400, 200], 
-                                   learning_rate=[1,1e-2], gridsize = ds[3],
-                                   plot_grid=False)
+mods, ch2_mapped = Model.run_model(ch1, ch2, coupled=ds[2], gridsize=ds[4], N_it=ds[5],
+                                   learning_rate=ds[6], plot_grid=False, pix_size=ds[1])
 
 
 #%% Metrics
 ## Histogram
 nbins = 30                                          # Number of bins
-avg1, avg2, fig1, _ = output_fn.errorHist(ch1,  ch2, ch2_mapped, nbins=nbins, direct=ds[2])
+avg1, avg2, fig1, _ = output_fn.errorHist(ch1.numpy(),  ch2.numpy(), ch2_mapped.numpy(),
+                                          nbins=nbins, direct=ds[2])
 fig1.suptitle('Distribution of distances between neighbouring Localizations')
     
 
 ## FOV
-_, _, fig2, _ = output_fn.errorFOV(ch1,  ch2, ch2_mapped, direct=ds[2])
+_, _, fig2, _ = output_fn.errorFOV(ch1.numpy(),  ch2.numpy(), ch2_mapped.numpy(), direct=ds[2])
 fig2.suptitle('Distribution of error between neighbouring pairs over radius')
     
 print('\nI: The original average distance was', avg1,'. The mapping has', avg2)
 
 
+
 #%% generating image
 # The Image
-plot_img = True                                     # do we want to generate a plot
-precision = 5                                       # precision of image in nm
-threshold = 100                                     # threshold for reference points
+plot_img = False                                     # do we want to generate a plot
+precision = 1                                       # precision of image in nm
 
 if plot_img:
     ## Channel Generation

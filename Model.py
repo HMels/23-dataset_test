@@ -4,7 +4,9 @@ _______________________________________________________________________________
 
 WARNING: CHANGING THE MODEL MEANS YOU ALSO HAVE TO CHANGE transform_vec()
 _______________________________________________________________________________
+
 '''
+
 import tensorflow as tf
 import numpy as np
 from copy import copy
@@ -23,7 +25,8 @@ import MinEntropyModules.Module_Poly3 as Module_Poly3
 
 #%% run_model
 def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2], 
-              gridsize = 100, plot_grid=False, sys_param=None):
+              gridsize = 100, plot_grid=False, sys_param=None, pix_size=100,
+              FilterPairs=True, maxDistPairs=[2000, 100]):
     '''
     
 
@@ -44,6 +47,10 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     sys_params : list, optional
         List containing the size of the system. The optional is None,
         which means it will be calculated by hand
+    FilterPairs : bool, optional
+        The boolian that turns the pair filter on and off. The default is True
+    maxDistPairs : float, optional
+        The maximum distance by which the pairs will be filtered 
 
     Returns
     -------
@@ -63,38 +70,41 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     SplinesMod=None
     ch2_ShiftRotSpline=None
     
+    #% Filter pairs
+    if FilterPairs:
+        ch1, ch2 = filter_pairs(ch1, ch2_ShiftRot, maxDistPairs[0])
     
     #% ShiftRotMod
     # training loop ShiftRotMod
     print('Running ShiftRot model...')
     ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(
-        ch1, ch2, N_it=N_it[0], maxDistance=30, learning_rate=learning_rate[0],
+        ch1, ch2, N_it=N_it[0], maxDistance=8*pix_size, learning_rate=learning_rate[0],
         direct=coupled, opt=tf.optimizers.Adagrad
         )
     
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
-    print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
+    if ShiftRotMod.model.trainable_variables[1].numpy() != 0:
+        print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
     
-    
+    #% Filter pairs
+    if FilterPairs:
+        ch1, ch2_ShiftRot = filter_pairs(ch1, ch2_ShiftRot, maxDistPairs[1])
+        
     #% Splines
     # training loop CatmullRomSplines
     print('Running Splines model...')
     SplinesMod, ch2_ShiftRotSpline = Module_Splines.run_optimization(
-        ch1, ch2_ShiftRot, N_it=N_it[1], gridsize=gridsize, maxDistance=30, 
+        ch1, ch2_ShiftRot, N_it=N_it[1], gridsize=gridsize, maxDistance=5*pix_size, 
         learning_rate=learning_rate[1], direct=coupled,  opt=tf.optimizers.Adagrad,
         sys_param=sys_param
         )
-    
-    print('I: Maximum mapping=',np.max( np.sqrt((ch2_ShiftRotSpline[:,0]-ch2[:,0])**2 +
-                                         (ch2_ShiftRotSpline[:,1]-ch2[:,1])**2 ) ),'[nm]')
-       
-    
+   
         
     #% Plotting the Grid
     if SplinesMod is not None and plot_grid:
         output_fn.plot_grid(ch1, ch2_ShiftRot, ch2_ShiftRotSpline, SplinesMod, gridsize=gridsize, d_grid = .01, 
                             locs_markersize=10, CP_markersize=8, grid_markersize=3, 
-                            grid_opacity=1, lines_per_CP=4, sys_param=sys_param)
+                            grid_opacity=1, lines_per_CP=2, sys_param=sys_param)
         
     print('Optimization Done in ',round(time.time()-start),'seconds')
     return [ShiftRotMod, SplinesMod], ch2_ShiftRotSpline
@@ -148,3 +158,29 @@ def transform_vec(mods, ch2, gridsize, sys_param=None):
     mods_temp.reset_CP(CP_idx)
     ch2_transformed = mods_temp.transform_vec(ch2_transformed)
     return ch2_transformed*gridsize
+
+
+#%% Filter pairs
+def filter_pairs(ch1, ch2, maxDist=50):
+    '''
+    filters pairs, only works if the datasets are coupled
+
+    Parameters
+    ----------
+    ch1 : TYPE
+        DESCRIPTION.
+    ch2 : TYPE
+        DESCRIPTION.
+    maxDist : TYPE, optional
+        DESCRIPTION. The default is 50.
+
+    Returns
+    -------
+    TYPE
+        DESCRIPTION.
+
+    '''
+    print('Filtering datasets with an iterative method for distances greater than',maxDist,'...')
+    Dist = np.sqrt(np.sum(( ch1 - ch2 )**2, axis=1))
+    mask = np.where(Dist<=maxDist, True, False)
+    return ch1[mask], ch2[mask]

@@ -34,13 +34,11 @@ def Rel_entropy(ch1,ch2):
         , axis = 1)
     return -1*tf.reduce_sum(tf.math.log( 
         expDist
-        ))
-
-    return tf.reduce_sum(tf.square(ch1-ch2))
+        ), axis=0)
 
 
 @tf.autograph.experimental.do_not_convert
-def KL_divergence(ch1, ch2):
+def KL_divergence(ch1, ch2, CRLB = 1):
     '''
     Parameters
     ----------
@@ -53,6 +51,4 @@ def KL_divergence(ch1, ch2):
         The Kullback Leibler divergence as described by Cnossen 2021.
 
     '''
-    typical_CRLB = 15   # CRLB is typically 0.15 pix in size
-    dist_squared = tf.square(ch1 - ch2)
-    return 0.5*tf.reduce_sum( dist_squared / typical_CRLB**2 , 2)
+    return 0.5*tf.reduce_sum( tf.square(ch1 - ch2) / CRLB**2 , axis=2)

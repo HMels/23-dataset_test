@@ -8,7 +8,7 @@ import numpy as np
 from photonpy import PostProcessMethods, Context
 
 
-def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
+def find_all_neighbours(locs_A, locs_B, maxDistance = 50, k = 16):
     '''
     generates a list with arrays containing the neighbours via find_channel_neighbours
     It then deletes all none bright spots.  Also used to make sure output matrix has
@@ -23,6 +23,8 @@ def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
         which means the program will use a threshold of average + std
     maxDistance : float/int, optional
         The vicinity in which we search for neighbours. The default is 50.
+    k : int
+        The number of KNNs to generate if no brightest neighbours are found. the default is 32.
         
     Returns
     -------
@@ -46,7 +48,6 @@ def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
     if idx1list == []: # generate the neighbours via kNN 
         print('\nError: No neighbours generated. Might be related to Threshold!',
               '\nNeighbours will be generated via KNN...')
-        k = 16
         for i in range(locs_A.shape[0]):
             idx1list.append( (i * np.ones([k,1], dtype=int)) )
         idx2list = KNN(locs_A, locs_B, k)
@@ -57,7 +58,7 @@ def find_all_neighbours(locs_A, locs_B, maxDistance = 50):
     return neighbours_A, neighbours_B
 
 
-def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
+def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50, k = 16):
     '''
     generates a list with arrays containing the neighbours via find_channel_neighbours
     It then deletes all none bright spots.  Also used to make sure output matrix has
@@ -72,6 +73,8 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
         which means the program will use a threshold of average + std
     maxDistance : float/int, optional
         The vicinity in which we search for neighbours. The default is 50.
+    k : int
+        The number of KNNs to generate if no brightest neighbours are found. the default is 32.
         
     Returns
     -------
@@ -91,6 +94,7 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
     print('Filtering for brightest spots...')
     idx1list = []
     idx2list = []
+    
     for idx in idxlist:
         if idx.size>0:
             if idx.shape[1] > threshold:
@@ -102,11 +106,10 @@ def find_bright_neighbours(locs_A, locs_B, threshold = None, maxDistance = 50):
                                     np.random.choice(idx.shape[1], threshold)
                                     ]) 
     
-    
+    idx1list = []
     if idx1list == []: # generate the neighbours via kNN 
         print('\nError: No neighbours generated. Might be related to Threshold!',
               '\nNeighbours will be generated via KNN...')
-        k = 32
         for i in range(locs_A.shape[0]):
             idx1list.append( (i * np.ones(k, dtype=int)) )
         idx2list = KNN(locs_A, locs_B, k)
@@ -180,8 +183,8 @@ def KNN(locs_A, locs_B, k):
 
     Returns
     -------
-    knn : [k, N, 2] TensorFlow Tensor
-        Tensor Containing the matrix of kNN 
+    knn : [k, N] TensorFlow Tensor
+        Tensor Containing the matrix with the indices of k-nearest neighbours 
 
     '''
     knn = []
