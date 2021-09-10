@@ -70,7 +70,7 @@ dataset=[ # [ Path, pix_size, coupled, subset,
      'C:/Users/Mels/Documents/example_MEP/ch1_locs.hdf5' ], 1, False, .025, 
          100, [400, 200], [1,1e-2] ]
       ]
-ds = dataset[1]      # [0] for beads [1] for HEL1
+ds = dataset[0]      # [0] for beads [1] for HEL1
 
 
 ## Deformation and system parameters

@@ -191,12 +191,12 @@ def plot_figures(locs_A, locs_B, mods, Filter=True, maxDist=50, nbins = 30, grid
 dataset=[ # [ Path, pix_size, coupled, subset,
           #   spline gridsize, N_it, learning_rate ]
     [ [ 'C:/Users/Mels/Documents/Supplementary-data/data/Registration/Set1/set1_beads_locs.csv' ],
-     1, False, 1, 600, [20, 100], [1,1e-2] ],
+     1, False, 1, 600, [200, 0], [1,1e-2] ],
     [ [ 'C:/Users/Mels/Documents/Supplementary-data/data/Registration/Set2/set2_beads_locs.csv' ],
-     1, False, 1, 600, [20, 100], [1,1e-2] ]
+     1, False, 1, 600, [200, 0], [1,1e-2] ]
       ]
 
-Filter=True
+Filter=False
 maxDist=30
 
 

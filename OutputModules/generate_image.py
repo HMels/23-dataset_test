@@ -31,7 +31,15 @@ def plot_channel(channel1, channel2, channel3, bounds,  precision):
     plt.title('channel 2 mapped')
     
     
-def plot_1channel(channel1, bounds, precision):
+def plot_1channel(channel1, bounds=None, precision=20):
+    
+    if bounds is None:
+        bounds = np.empty([2,2], dtype = float) 
+        bounds[0,0] = np.min(channel1[:,0])
+        bounds[0,1] = np.max(channel1[:,0])
+        bounds[1,0] = np.min(channel1[:,1])
+        bounds[1,1] = np.max(channel1[:,1])
+        
     axis = np.array([ bounds[1,:], bounds[0,:]]) * precision
     axis = np.reshape(axis, [1,4])[0]
     

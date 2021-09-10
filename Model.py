@@ -19,6 +19,7 @@ import OutputModules.output_fn as output_fn
 
 # Models
 import MinEntropyModules.Module_ShiftRot as Module_ShiftRot
+import MinEntropyModules.Module_Affine as Module_Affine
 import MinEntropyModules.Module_Splines as Module_Splines
 import MinEntropyModules.Module_Poly3 as Module_Poly3
 
@@ -26,7 +27,7 @@ import MinEntropyModules.Module_Poly3 as Module_Poly3
 #%% run_model
 def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2], 
               gridsize = 100, plot_grid=False, sys_param=None, pix_size=100,
-              FilterPairs=True, maxDistPairs=[2000, 100]):
+              FilterPairs=False, maxDistPairs=[2000, 100]):
     '''
     
 
@@ -77,14 +78,14 @@ def run_model(ch1, ch2, coupled=True, N_it=[400, 200], learning_rate=[1,1e-2],
     #% ShiftRotMod
     # training loop ShiftRotMod
     print('Running ShiftRot model...')
-    ShiftRotMod, ch2_ShiftRot = Module_ShiftRot.run_optimization(
+    ShiftRotMod, ch2_ShiftRot = Module_Affine.run_optimization(
         ch1, ch2, N_it=N_it[0], maxDistance=8*pix_size, learning_rate=learning_rate[0],
         direct=coupled, opt=tf.optimizers.Adagrad
         )
     
     print('I: Shift Mapping=', ShiftRotMod.model.trainable_variables[0].numpy(), 'nm')
-    if ShiftRotMod.model.trainable_variables[1].numpy() != 0:
-        print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy()/100,'degrees')
+    #if ShiftRotMod.model.trainable_variables[1].numpy() != 0:
+    print('I: Rotation Mapping=', ShiftRotMod.model.trainable_variables[1].numpy(),'degrees')
     
     #% Filter pairs
     if FilterPairs:
